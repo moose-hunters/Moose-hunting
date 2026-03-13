@@ -2,3 +2,4 @@
 *.[ao]
 logs/*.txt
 build/
+bin/
