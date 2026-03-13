@@ -29,6 +29,16 @@ cd Moose-hunting
 
 ---
 
+---
+
+# Quick Build & Run
+
+_(Git Bash on Windows with MinGW)_
+
+```bash
+cmake -G "MinGW Makefiles" -S . -B build && cmake --build build && cd build && ./MooseHunting
+```
+
 # Configure the Project
 
 Choose the instructions depending on your operating system and preferred build tool.
@@ -154,7 +164,7 @@ cmake --build build --config Debug
 
 ---
 
-# ▶️ Run the Executable
+# Run the Executable
 
 After a successful build, the executable will be located inside the **build** directory.
 
@@ -170,16 +180,6 @@ cd build
 ```bash
 cd build
 ./MooseHunting
-```
-
----
-
-# Quick Build & Run
-
-_(Git Bash on Windows with MinGW)_
-
-```bash
-cmake -G "MinGW Makefiles" -S . -B build && cmake --build build && cd build && ./MooseHunting
 ```
 
 ---
