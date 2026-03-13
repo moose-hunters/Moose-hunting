@@ -27,17 +27,18 @@ git clone <repository-url>
 cd Moose-hunting
 ```
 
----
-
----
+--
 
 # Quick Build & Run
 
 _(Git Bash on Windows with MinGW)_
 
 ```bash
-cmake -G "MinGW Makefiles" -S . -B build && cmake --build build && cd build && ./MooseHunting
+cmake -G "M
+inGW Makefiles" -S . -B build && cmake --build build && cd build && ./MooseHunting
 ```
+
+---
 
 # Configure the Project
 
@@ -181,8 +182,6 @@ cd build
 cd build
 ./MooseHunting
 ```
-
----
 
 # Notes
 
