@@ -4,13 +4,15 @@
 Window::Window(int width, int height, const std::string& title)
     : m_width(width), m_height(height), m_title(title), m_window(nullptr) {
 
-    // Инициализация GLFW
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
         exit(-1);
     }
 
-    // Создание окна
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
     m_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!m_window) {
         std::cerr << "Failed to create window" << std::endl;
@@ -18,19 +20,14 @@ Window::Window(int width, int height, const std::string& title)
         exit(-1);
     }
 
-    // Делаем контекст текущим
     glfwMakeContextCurrent(m_window);
 
-    // Инициализация GLAD
-    if (!gladLoadGL()) {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD" << std::endl;
         exit(-1);
     }
 
-    // Вывод информации об OpenGL
     std::cout << "OpenGL " << GLVersion.major << "." << GLVersion.minor << std::endl;
-
-    // Устанавливаем цвет очистки (фон)
     glClearColor(42.0f / 255, 42.0f / 255, 53.0f / 255, 1.0f);
 }
 
@@ -54,5 +51,5 @@ void Window::pollEvents() {
 }
 
 void Window::clear() {
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
