@@ -5,6 +5,11 @@ The project is built using **CMake** and can be compiled on **Windows, Linux, an
 
 ---
 
+**Our Team**
+Rybin Valery, Shamsutdinov Radomir
+
+---
+
 # Requirements
 
 Before building the project, make sure the following tools are installed:
@@ -204,8 +209,29 @@ cd build
 Moose-hunting
 │
 ├── external
+│   └── glad
+│   └── glfw
+│   └── glm
+│   └── stb
+│   └── tinygltf
+│
 ├── include
+│   └── Game.h
+│   └── Tree.h
+│   └── Window.h
+│   └── gl_utils.h
+│   └── shader.h
+│
+├── shaders
+│   └── tree_fragment.glsl
+│   └── tree_vertex.glsl
+│
 ├── src
+│   └── Game.cpp
+│   └── Tree.cpp
+│   └── Window.cpp
+│   └── gl_utils.cpp
+│   └── shader.cpp
 │   └── main.cpp
 │
 ├── .gitignore
