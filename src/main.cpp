@@ -2,19 +2,19 @@
 #include <iostream>
 
 int main() {
-    std::cout << "=== НАЧАЛО ПРОГРАММЫ ===" << std::endl;
+    std::cout << "Starting..." << std::endl;
 
     Game game;
 
-    std::cout << "Вызываем init..." << std::endl;
+    std::cout << "Calling init..." << std::endl;
     if (!game.init(1024, 768, "Moose Hunting")) {
-        std::cerr << "Ошибка инициализации!" << std::endl;
+        std::cerr << "initialization error!" << std::endl;
         return -1;
     }
 
-    std::cout << "Запускаем игровой цикл..." << std::endl;
+    std::cout << "Starting the game loop..." << std::endl;
     game.run();
 
-    std::cout << "=== ПРОГРАММА ЗАВЕРШЕНА ===" << std::endl;
+    std::cout << "end" << std::endl;
     return 0;
 }

@@ -4,21 +4,21 @@
 #include <string>
 #include <vector>
 
-// Структура вершины (позиция + нормаль + текстурные координаты)
+// стуктура для вершины
 struct Vertex {
     float x, y, z;      // позиция
     float nx, ny, nz;   // нормаль
     float u, v;         // текстурные координаты
 };
 
-// Проверка ошибок OpenGL (для отладки)
+// проверяем ошибки для отладки
 void checkGLError(const std::string& location);
 
-// Компиляция шейдера
+// шейдеры
 GLuint compileShader(GLenum type, const std::string& source);
 
-// Создание шейдерной программы из файлов
+// создание шейдерной программы из файлов
 GLuint createProgram(const std::string& vertexPath, const std::string& fragmentPath);
 
-// Создание VAO из вершин и индексов
+// создание VAO из вершин и индексов
 GLuint createVAO(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);

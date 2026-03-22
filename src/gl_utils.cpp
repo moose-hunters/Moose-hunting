@@ -29,7 +29,7 @@ GLuint compileShader(GLenum type, const std::string& source) {
 }
 
 GLuint createProgram(const std::string& vertexPath, const std::string& fragmentPath) {
-    // Читаем вершинный шейдер
+    // работаем с вершинным шейдером
     std::string vertexCode;
     std::ifstream vFile(vertexPath);
     if (!vFile.is_open()) {
@@ -41,7 +41,7 @@ GLuint createProgram(const std::string& vertexPath, const std::string& fragmentP
     vertexCode = vStream.str();
     vFile.close();
 
-    // Читаем фрагментный шейдер
+    // работаем с фрагментным шейдером
     std::string fragmentCode;
     std::ifstream fFile(fragmentPath);
     if (!fFile.is_open()) {
@@ -53,7 +53,7 @@ GLuint createProgram(const std::string& vertexPath, const std::string& fragmentP
     fragmentCode = fStream.str();
     fFile.close();
 
-    // Компилируем шейдеры
+    // компилируем шейдеры
     GLuint vertex = compileShader(GL_VERTEX_SHADER, vertexCode);
     GLuint fragment = compileShader(GL_FRAGMENT_SHADER, fragmentCode);
 
@@ -63,7 +63,7 @@ GLuint createProgram(const std::string& vertexPath, const std::string& fragmentP
         return 0;
     }
 
-    // Линкуем программу
+    // линкуем программу
     GLuint program = glCreateProgram();
     glAttachShader(program, vertex);
     glAttachShader(program, fragment);

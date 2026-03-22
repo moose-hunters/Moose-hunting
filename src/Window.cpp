@@ -4,8 +4,9 @@
 Window::Window(int width, int height, const std::string& title)
     : m_width(width), m_height(height), m_title(title), m_window(nullptr) {
 
+    std::cout << "1. GLFW initialization..." << std::endl;
     if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
+        std::cerr << "error: failed to initialize GLFW" << std::endl;
         exit(-1);
     }
 
@@ -13,17 +14,20 @@ Window::Window(int width, int height, const std::string& title)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    std::cout << "2. Window creating..." << std::endl;
     m_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!m_window) {
-        std::cerr << "Failed to create window" << std::endl;
+        std::cerr << "error: failed to create window" << std::endl;
         glfwTerminate();
         exit(-1);
     }
 
+    std::cout << "3. Making context current..." << std::endl;
     glfwMakeContextCurrent(m_window);
 
+    std::cout << "4. GLAD initialization..." << std::endl;
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "Failed to initialize GLAD" << std::endl;
+        std::cerr << "error: failed to initialize GLAD" << std::endl;
         exit(-1);
     }
 
@@ -52,4 +56,17 @@ void Window::pollEvents() {
 
 void Window::clear() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void Window::setCursorDisabled(bool disabled) {
+    if (disabled) {
+        glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+    else {
+        glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+}
+
+void Window::setCursorPosCallback(GLFWcursorposfun callback) {
+    glfwSetCursorPosCallback(m_window, callback);
 }

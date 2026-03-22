@@ -1,16 +1,13 @@
-#ifndef TREE_H
-#define TREE_H
-
+#pragma once
+#include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <string>
 #include <vector>
 
 struct Vertex;
 
-typedef unsigned int GLuint;
-
 struct Texture {
-    GLuint id;
+    GLuint id = 0;
     std::string type;
 };
 
@@ -33,5 +30,3 @@ private:
 
     void setupMesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);
 };
-
-#endif

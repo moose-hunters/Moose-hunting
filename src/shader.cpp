@@ -11,7 +11,7 @@ Shader::~Shader() {
 }
 
 bool Shader::load(const std::string& vertexPath, const std::string& fragmentPath) {
-    // Читаем вершинный шейдер
+    // работаем с вершинным шейдером
     std::string vertexCode;
     std::ifstream vFile(vertexPath);
     if (!vFile.is_open()) {

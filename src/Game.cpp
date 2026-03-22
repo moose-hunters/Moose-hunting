@@ -8,7 +8,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// Статический указатель для callback
 static Game* g_gameInstance = nullptr;
 
 Game::Game()
@@ -34,70 +33,58 @@ Game::~Game() {
 }
 
 bool Game::init(int width, int height, const char* title) {
+
     m_width = width;
     m_height = height;
+    m_lastX = width / 2.0f;
+    m_lastY = height / 2.0f;
 
-    std::cout << "1. Инициализация GLFW..." << std::endl;
-    if (!glfwInit()) {
-        std::cerr << "Ошибка: не удалось инициализировать GLFW" << std::endl;
-        return false;
-    }
+    m_window = new Window(width, height, title);
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    GLFWwindow* glfwWindow = m_window->getGLFWwindow();
 
-    std::cout << "2. Создание окна..." << std::endl;
-    m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    if (!m_window) {
-        std::cerr << "Ошибка: не удалось создать окно" << std::endl;
-        glfwTerminate();
-        return false;
-    }
-
-    std::cout << "3. Делаем контекст текущим..." << std::endl;
-    glfwMakeContextCurrent(m_window);
-
-    std::cout << "4. Инициализация GLAD..." << std::endl;
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "Ошибка: не удалось инициализировать GLAD" << std::endl;
-        return false;
-    }
-
-    std::cout << "5. Проверка OpenGL версии..." << std::endl;
+    std::cout << "5. Checking OpenGL version..." << std::endl;
     const char* version = (const char*)glGetString(GL_VERSION);
     if (version) {
         std::cout << "OpenGL version: " << version << std::endl;
     }
     else {
-        std::cerr << "Ошибка: glGetString вернул NULL!" << std::endl;
+        std::cerr << "error: glGetString returned NULL!" << std::endl;
         return false;
     }
 
-    std::cout << "6. Настройка OpenGL..." << std::endl;
+    std::cout << "6. Setting up OpenGL..." << std::endl;
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 
-    std::cout << "7. Загрузка шейдера..." << std::endl;
+    std::cout << "7. Setting mouse input..." << std::endl;
+    m_window->setCursorDisabled(true);
+    m_window->setCursorPosCallback(mouseCallback);
+    std::cout << "Cursor captured" << std::endl;
+
+    std::cout << "8. Loading shaders..." << std::endl;
     if (!m_shader.load("shaders/tree_vertex.glsl", "shaders/tree_fragment.glsl")) {
-        std::cerr << "Ошибка: не удалось загрузить шейдер" << std::endl;
+        std::cerr << "error: failed to load shaders" << std::endl;
         return false;
     }
 
-    std::cout << "8. Загрузка дерева..." << std::endl;
+    std::cout << "9. Loading assets..." << std::endl;
     if (!m_tree.load("assets/tree.glb")) {
-        std::cerr << "Ошибка: не удалось загрузить модель дерева" << std::endl;
+        std::cerr << "error: failed to load assets" << std::endl;
         return false;
     }
 
-    std::cout << "Инициализация завершена успешно!" << std::endl;
+    std::cout << "Initialization completed successfully!" << std::endl;
     return true;
 }
 
 void Game::run() {
     float lastFrame = 0.0f;
 
-    while (!glfwWindowShouldClose(m_window)) {
+    // обрабатываем кадры
+    while (!m_window->shouldClose()) {
         float currentFrame = glfwGetTime();
         float deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
@@ -106,30 +93,32 @@ void Game::run() {
 
         render();
 
-        glfwSwapBuffers(m_window);
-        glfwPollEvents();
+        m_window->swapBuffers();
+        m_window->pollEvents();
     }
 }
 
 void Game::processInput(float deltaTime) {
     float speed = 5.0f * deltaTime;
+    GLFWwindow* glfwWindow = m_window->getGLFWwindow();
 
-    if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
+    // движение на wasd
+    if (glfwGetKey(glfwWindow, GLFW_KEY_W) == GLFW_PRESS)
         m_cameraPos += m_cameraFront * speed;
-    if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
+    if (glfwGetKey(glfwWindow, GLFW_KEY_S) == GLFW_PRESS)
         m_cameraPos -= m_cameraFront * speed;
-    if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
+    if (glfwGetKey(glfwWindow, GLFW_KEY_A) == GLFW_PRESS)
         m_cameraPos -= glm::normalize(glm::cross(m_cameraFront, m_cameraUp)) * speed;
-    if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
+    if (glfwGetKey(glfwWindow, GLFW_KEY_D) == GLFW_PRESS)
         m_cameraPos += glm::normalize(glm::cross(m_cameraFront, m_cameraUp)) * speed;
 
-    // ESC для выхода
-    if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(m_window, true);
+    // выход через ESC
+    if (glfwGetKey(glfwWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(glfwWindow, true);
 }
 
 void Game::updateCamera() {
-    // Обновление вектора направления камеры из yaw/pitch
+    // обновляем вектора направления камеры
     glm::vec3 front;
     front.x = cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
     front.y = sin(glm::radians(m_pitch));
@@ -138,39 +127,38 @@ void Game::updateCamera() {
 }
 
 void Game::render() {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    m_window->clear();
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Обновляем камеру из мыши
+    // обновляем камеру из мыши
     updateCamera();
 
-    // Матрицы
+    // создаем матрицу камеры, она определяет, куда мы смотрим
     glm::mat4 view = glm::lookAt(m_cameraPos, m_cameraPos + m_cameraFront, m_cameraUp);
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)m_width / m_height, 0.1f, 100.0f);
 
-    // Используем шейдер
+    // используем шейдер
     m_shader.use();
 
-    // Передаем uniform'ы
+    // передаем uniform'ы
+    m_shader.setMat4("view", view);
+    m_shader.setMat4("projection", projection);
     m_shader.setVec3("lightPos", m_lightPos);
     m_shader.setVec3("lightColor", m_lightColor);
     m_shader.setVec3("viewPos", m_cameraPos);
 
-    // Рисуем дерево в позиции (0, 0, 0) с масштабом 1
+    // рисуем дерево в позиции (0, 0, 0) с масштабом 1
     m_tree.render(view, projection, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
 }
 
 void Game::cleanup() {
     m_tree.cleanup();
     if (m_window) {
-        glfwDestroyWindow(m_window);
-        glfwTerminate();
+        delete m_window;
+        m_window = nullptr;
     }
 }
 
+// обработка движения мыши
 void Game::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     if (!g_gameInstance) return;
 

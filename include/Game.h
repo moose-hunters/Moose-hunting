@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include "Tree.h"
 #include "shader.h"
+#include "Window.h"
 
 class Game {
 public:
@@ -16,14 +17,15 @@ public:
     void cleanup();
 
 private:
-    GLFWwindow* m_window;
+    Window* m_window;
     int m_width;
     int m_height;
 
-    Tree m_tree;           // Одно дерево
-    Shader m_shader;       // Шейдер для дерева
-
-    // Камера (простейшая)
+    // пока что только одно дерево
+    Tree m_tree;
+    Shader m_shader;
+    
+    // векторы для камеры
     glm::vec3 m_cameraPos;
     glm::vec3 m_cameraFront;
     glm::vec3 m_cameraUp;
@@ -34,7 +36,7 @@ private:
     float m_lastY;
     bool m_firstMouse;
 
-    // Освещение
+    // освещение
     glm::vec3 m_lightPos;
     glm::vec3 m_lightColor;
 
