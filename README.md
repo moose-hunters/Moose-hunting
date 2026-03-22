@@ -41,8 +41,7 @@ cd Moose-hunting
 _(Git Bash on Windows with MinGW)_
 
 ```bash
-cmake -G "M
-inGW Makefiles" -S . -B build && cmake --build build && cd build && ./MooseHunting
+cmake -G "MinGW Makefiles" -S . -B build && cmake --build build && cd build && ./MooseHunting
 ```
 
 ---
@@ -73,21 +72,7 @@ If **Visual Studio** (with C++ tools) is installed:
 cmake -S . -B build
 ```
 
-CMake will automatically select a generator such as:
-
-```
-Visual Studio 17 2022
-```
-
-You can then:
-
-### Open the project in Visual Studio
-
-```
-build/Moose-hunting.sln
-```
-
-### Or build from the command line
+### build from the command line
 
 ```bash
 cmake --build build --config Release
@@ -209,6 +194,8 @@ cd build
 
 ```
 Moose-hunting
+│
+├── assets
 │
 ├── external
 │   └── glad
