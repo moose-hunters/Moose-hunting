@@ -5,8 +5,10 @@ The project is built using **CMake** and can be compiled on **Windows, Linux, an
 
 ---
 
-**Our Team**
-Rybin Valery, Shamsutdinov Radomir
+# Our Team
+
+Rybin Valery
+Shamsutdinov Radomir
 
 ---
 
