@@ -48,6 +48,14 @@ add_executable(${PROJECT_NAME}
     src/shader.cpp
 )
 
+# ========== ДОБАВЛЕНИЕ ASSETS и SHADERS  ==========
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
+    COMMENT "Copying assets and shaders to build directory"
+)
 # ========== ПУТИ ДЛЯ ПОИСКА ЗАГОЛОВКОВ ==========
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
