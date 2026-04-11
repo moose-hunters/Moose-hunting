@@ -5,7 +5,7 @@
 #include <string>
 
 class Window {
-public:
+   public:
     Window(int width, int height, const std::string& title);
     ~Window();
 
@@ -13,15 +13,15 @@ public:
     void swapBuffers();
     void pollEvents();
     void clear();
+    void setCursorDisabled(bool disabled);
+    void setCursorPosCallback(GLFWcursorposfun callback);
+    void setScrollCallback(GLFWscrollfun callback);
 
     GLFWwindow* getGLFWwindow() const { return m_window; }
     int getWidth() const { return m_width; }
     int getHeight() const { return m_height; }
 
-    void setCursorDisabled(bool disabled);
-    void setCursorPosCallback(GLFWcursorposfun callback);
-
-private:
+   private:
     GLFWwindow* m_window;
     int m_width;
     int m_height;

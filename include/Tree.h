@@ -1,32 +1,76 @@
 #pragma once
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <string>
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include <stb_image.h>
+#include "shader.h"
 #include <vector>
+#include <string>
 
-struct Vertex;
-
-struct Texture {
-    GLuint id = 0;
-    std::string type;
+// Одна вершина
+struct Vertex {
+    glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec2 texCoords;
+    glm::vec3 tangent;
+    glm::vec3 bitangent;
 };
 
-class Tree {
-public:
-    Tree();
-    ~Tree();
+// Текстура меша
+struct MeshTexture {
+    GLuint id;
+    std::string type;  // "texture_diffuse", "texture_specular", etc.
+    std::string path;
+};
 
-    bool load(const std::string& glbPath);
-    void render(const glm::mat4& view, const glm::mat4& projection,
-        const glm::vec3& position, float scale = 1.0f);
+// ---- Один меш ----
+class Mesh {
+   public:
+    std::vector<Vertex> vertices;
+    std::vector<GLuint> indices;
+    std::vector<MeshTexture> textures;
+
+    glm::vec4 baseColorFactor{1.0f};  // GLTF PBR albedo
+    bool hasBaseColorTexture{false};
+
+    Mesh(std::vector<Vertex> v, std::vector<GLuint> i, std::vector<MeshTexture> t);
+    void draw(const Shader& shader) const;
     void cleanup();
 
-private:
-    GLuint m_VAO;
-    GLuint m_VBO;
-    GLuint m_EBO;
-    int m_indexCount;
-    std::vector<Texture> m_textures;
+   private:
+    GLuint m_vao, m_vbo, m_ebo;
+    void setupMesh();
+};
 
-    void setupMesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);
+// ---- Дерево (модель из GLB) ----
+class Tree {
+   public:
+    Tree() = default;
+    ~Tree() { cleanup(); }
+
+    bool load(const std::string& path);
+
+    // Рисует с передачей матриц прямо внутрь (шейдер уже должен быть активирован снаружи)
+    void render(Shader& shader,
+        const glm::vec3& position = glm::vec3(0.0f),
+        float scale = 1.0f);
+
+    void cleanup();
+
+   private:
+    std::vector<Mesh> m_meshes;
+    std::vector<MeshTexture> m_loadedTextures;
+    std::string m_directory;
+
+    void processNode(aiNode* node, const aiScene* scene);
+    Mesh processMesh(aiMesh* mesh, const aiScene* scene);
+    std::vector<MeshTexture> loadMaterialTextures(
+        aiMaterial* mat, aiTextureType type,
+        const std::string& typeName, const aiScene* scene);
+    GLuint loadTextureFromFile(const std::string& path);
+    GLuint loadEmbeddedTexture(const aiTexture* tex);
+    GLuint createFallbackTexture(unsigned char r, unsigned char g, unsigned char b);
 };
