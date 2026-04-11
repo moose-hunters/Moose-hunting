@@ -41,7 +41,7 @@ cd Moose-hunting
 _(Git Bash on Windows with MinGW)_
 
 ```bash
-cmake -G "MinGW Makefiles" -S . -B build && cmake --build build && cd build && ./MooseHunting
+cmake -G "MinGW Makefiles" -S . -B build && cmake --build build && ./build/MooseHunting
 ```
 
 ---
