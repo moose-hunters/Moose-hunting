@@ -22,7 +22,7 @@ struct Vertex {
 // Текстура меша
 struct MeshTexture {
     GLuint id;
-    std::string type;  // "texture_diffuse", "texture_specular", etc.
+    std::string type;
     std::string path;
 };
 
@@ -45,15 +45,15 @@ class Mesh {
     void setupMesh();
 };
 
-// ---- Дерево (модель из GLB) ----
+// ---- Дерево ----
 class Tree {
    public:
     Tree() = default;
     ~Tree() { cleanup(); }
 
-    bool load(const std::string& path);
+    bool load(const std::string& path, bool preTransform = false);
 
-    // Рисует с передачей матриц прямо внутрь (шейдер уже должен быть активирован снаружи)
+    // Рисует с передачей матриц прямо внутрь
     void render(Shader& shader,
         const glm::vec3& position = glm::vec3(0.0f),
         float scale = 1.0f);

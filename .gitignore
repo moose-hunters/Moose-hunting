@@ -3,4 +3,4 @@
 logs/*.txt
 build/
 bin/
-.vscode
+.vscode.vs/

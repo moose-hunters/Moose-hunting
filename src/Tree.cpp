@@ -68,7 +68,7 @@ void Mesh::draw(const Shader& shader) const {
         glBindTexture(GL_TEXTURE_2D, textures[i].id);
     }
 
-    // Передаём базовый цвет (для мешей без текстуры)
+    // Передаём базовый цвет
     shader.setVec4("baseColorFactor", baseColorFactor);
     shader.setBool("hasTexture", !textures.empty() && hasBaseColorTexture);
 
@@ -87,19 +87,19 @@ void Mesh::cleanup() {
 
 // ==================== Tree ====================
 
-bool Tree::load(const std::string& path) {
+bool Tree::load(const std::string& path, bool preTransform) {
     Assimp::Importer importer;
 
     // aiProcess_Triangulate — гарантируем треугольники
     // aiProcess_FlipUVs     — переворачиваем UV по Y (OpenGL vs DirectX)
     // aiProcess_CalcTangentSpace — считаем тангенты
     // aiProcess_GenNormals  — генерируем нормали если их нет
-    const aiScene* scene = importer.ReadFile(path,
-        aiProcess_Triangulate |
-            aiProcess_FlipUVs |
-            aiProcess_CalcTangentSpace |
-            aiProcess_GenSmoothNormals |
-            aiProcess_JoinIdenticalVertices);
+    unsigned int flags = aiProcess_Triangulate | aiProcess_FlipUVs |
+        aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals;
+
+    if (preTransform) flags |= aiProcess_PreTransformVertices; // Включаем только если просят
+
+    const aiScene* scene = importer.ReadFile(path, flags);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         std::cerr << "Assimp error: " << importer.GetErrorString() << std::endl;

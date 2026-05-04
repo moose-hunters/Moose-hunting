@@ -12,6 +12,27 @@ Game::Game()
 
 Game::~Game() { cleanup(); }
 
+void Game::updateMoose(float dt) {
+    m_mooseTimer -= dt;
+
+    // Если время вышло — меняем направление на случайное
+    if (m_mooseTimer <= 0.0f) {
+        float randomAngle = (rand() % 360) * 3.14159265f / 180.0f; // Угол в радианах
+        m_mooseDir.x = cosf(randomAngle);
+        m_mooseDir.y = sinf(randomAngle);
+
+        // Логика движения слона - лось будет идти в эту сторону от 2 до 5 секунд
+        m_mooseTimer = 2.0f + (rand() % 301) / 100.0f;
+    }
+
+    // Двигаем лося
+    m_moosePos.x += m_mooseDir.x * m_mooseSpeed * dt;
+    m_moosePos.z += m_mooseDir.y * m_mooseSpeed * dt;
+
+    // Привязываем лося к высоте рельефа, чтобы он не летал и не проваливался
+    m_moosePos.y = m_terrain.getHeight(m_moosePos.x, m_moosePos.z);
+}
+
 
 // ------- collisions ---------
 bool Game::checkTreeCollision(glm::vec3 nextPos) {
@@ -19,7 +40,7 @@ bool Game::checkTreeCollision(glm::vec3 nextPos) {
     const float treeRadius = 0.5f;
     const float minDist = playerRadius + treeRadius;
 
-    // Теперь бегаем по структуре TreeInstance
+    // Пробегаемся по деревьям
     for (const auto& tree : m_trees) {
         float dx = nextPos.x - tree.pos.x;
         float dz = nextPos.z - tree.pos.z;
@@ -27,7 +48,7 @@ bool Game::checkTreeCollision(glm::vec3 nextPos) {
             return true;
         }
     }
-    // Кусты здесь НЕ проверяем, поэтому сквозь них можно ходить!
+
     return false;
 }
 
@@ -58,19 +79,23 @@ bool Game::init(int width, int height, const char* title) {
         return false;
     }
 
-    // Модель дерева — файл называется Tree1.glb
+    // Подгружаем деревья
     m_treeModels.resize(3);
-    m_treeModels[0].load("assets/Tree1.glb");
-    m_treeModels[1].load("assets/Tree2.glb");
-    m_treeModels[2].load("assets/Tree3.glb");
+    m_treeModels[0].load("assets/Tree1.glb", false);
+    m_treeModels[1].load("assets/Tree2.glb", false);
+    m_treeModels[2].load("assets/Tree3.glb", false);
 
     // Загружаю куст
-    m_bushModel.load("assets/Bush.glb");
+    m_bushModel.load("assets/Bush.glb", false);
+
+    // Загружаю лося
+    m_mooseModel.load("assets/Moose.glb", true);
 
     // Загружаю землю
     m_terrain.init("assets/Grass.png");
 
-    std::cout << "Init OK. WASD = move, Mouse = look, Scroll = FOV, ESC = exit" << std::endl;
+    std::cout << "Init OK. WASD = move, Mouse = look, ESC = exit" << std::endl;
+
 
     for (int i = 0; i < 30; ++i) {
         float tx = (rand() % 4000 / 100.0f) - 20.0f;
@@ -79,7 +104,8 @@ bool Game::init(int width, int height, const char* title) {
 
         TreeInstance t;
         t.pos = glm::vec3(tx, ty, tz);
-        t.type = rand() % 3; // Рандомно выбираем модель 0, 1 или 2
+        t.type = rand() % 3;
+        t.scale = 0.8f + (rand() % 41) / 100.0f;
         m_trees.push_back(t);
     }
 
@@ -87,8 +113,16 @@ bool Game::init(int width, int height, const char* title) {
         float bx = (rand() % 4000 / 100.0f) - 20.0f;
         float bz = (rand() % 4000 / 100.0f) - 20.0f;
         float by = m_terrain.getHeight(bx, bz);
-        m_bushes.push_back(glm::vec3(bx, by, bz));
+
+        BushInstance b;
+        b.pos = glm::vec3(bx, m_terrain.getHeight(bx, bz), bz);
+        b.scale = 0.6f + (rand() % 81) / 100.0f;
+        m_bushes.push_back(b);
     }
+
+    // Ставим лося в центр карты и даем начальное направление
+    m_moosePos = glm::vec3(0.0f, m_terrain.getHeight(0.0f, 0.0f), 0.0f);
+    m_mooseDir = glm::normalize(glm::vec2(1.0f, 0.5f));
 
     // Стартовая позиция камеры на новой поверхности
     m_cameraPos.y = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
@@ -104,6 +138,7 @@ void Game::run() {
         last = now;
 
         processInput(dt);
+        updateMoose(dt);
         render();
 
         m_window->swapBuffers();
@@ -142,7 +177,7 @@ void Game::processInput(float dt) {
     m_velocityY += m_gravity * dt;
     m_cameraPos.y += m_velocityY * dt;
 
-    // Высота берется строго из Terrain
+    // Высота берется из Terrain
     float groundY = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
     if (m_cameraPos.y <= groundY) {
         m_cameraPos.y = groundY;
@@ -183,16 +218,18 @@ void Game::render() {
 
     m_terrain.render(m_shader);
 
-    // Рисую кусты
-    for (const auto& pos : m_bushes) {
-        m_bushModel.render(m_shader, pos, 3.0f);
+    // Рисуем кусты 
+    for (const auto& bush : m_bushes) {
+        m_bushModel.render(m_shader, bush.pos, bush.scale);
     }
 
     // Рисуем деревья
     for (const auto& tree : m_trees) {
-        // Берем модель нужного типа и рисуем ее по позиции
-        m_treeModels[tree.type].render(m_shader, tree.pos, 1.0f);
+        m_treeModels[tree.type].render(m_shader, tree.pos, tree.scale);
     }
+
+    // Рисуем лося
+    m_mooseModel.render(m_shader, m_moosePos, 0.5f);
 }
 
 // ---- Cleanup ----
@@ -206,6 +243,8 @@ void Game::cleanup() {
         glDeleteTextures(1, &m_floorTexture);
         m_floorTexture = 0;
     }
+
+    m_mooseModel.cleanup();
     delete m_window;
     m_window = nullptr;
 }
@@ -222,7 +261,7 @@ void Game::mouseCallback(GLFWwindow*, double xpos, double ypos) {
     }
 
     float dx = (float)xpos - g.m_lastX;
-    float dy = g.m_lastY - (float)ypos;  // инвертируем Y
+    float dy = g.m_lastY - (float)ypos;
     g.m_lastX = (float)xpos;
     g.m_lastY = (float)ypos;
 

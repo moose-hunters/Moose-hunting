@@ -10,7 +10,13 @@
 
 struct TreeInstance {
     glm::vec3 pos;
-    int type; // Индекс модели (0, 1 или 2)
+    int type;
+    float scale;
+};
+
+struct BushInstance {
+    glm::vec3 pos;
+    float scale;
 };
 
 
@@ -56,7 +62,7 @@ class Game {
     static void mouseCallback(GLFWwindow* w, double x, double y);
     static void scrollCallback(GLFWwindow* w, double xoff, double yoff);
 
-    // Ограничиваем Y камеры (ходим по полу)
+    // Ограничиваем Y камеры
     float m_floorY = 1.5f;
 
     // Деревья
@@ -65,7 +71,17 @@ class Game {
 
     // Кусты
     Tree m_bushModel;
-    std::vector<glm::vec3> m_bushes;
+    std::vector<BushInstance> m_bushes;
+
+    // --- Лось ---
+    Tree m_mooseModel;
+    glm::vec3 m_moosePos;
+    glm::vec2 m_mooseDir;      // Направление движения в плоскости XZ
+    float m_mooseSpeed = 2.0f; // Скорость лося
+    float m_mooseTimer = 0.0f; // Таймер до смены направления
+    
+    void updateMoose(float dt);
+
 
     // Физика прыжка
     float m_velocityY = 0.0f;
