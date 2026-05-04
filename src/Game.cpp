@@ -6,124 +6,29 @@
 static Game* g_gameInstance = nullptr;
 
 Game::Game()
-    : m_window(nullptr), m_width(1024), m_height(768), m_cameraPos(0.0f, 1.5f, 8.0f), m_cameraFront(0.0f, 0.0f, -1.0f), m_cameraUp(0.0f, 1.0f, 0.0f), m_yaw(-90.0f), m_pitch(0.0f), m_lastX(512.0f), m_lastY(384.0f), m_firstMouse(true), m_fov(45.0f), m_lightPos(5.0f, 10.0f, 5.0f), m_lightColor(1.0f, 0.95f, 0.85f), m_floorVAO(0), m_floorVBO(0), m_floorTexture(0), m_floorY(1.5f) {
+    : m_window(nullptr), m_width(1024), m_height(768), m_cameraPos(0.0f, 1.5f, 8.0f), m_cameraFront(0.0f, 0.0f, -1.0f), m_cameraUp(0.0f, 1.0f, 0.0f), m_yaw(-90.0f), m_pitch(0.0f), m_lastX(512.0f), m_lastY(384.0f), m_firstMouse(true), m_fov(45.0f), m_lightPos(5.0f, 10.0f, 5.0f), m_lightColor(1.0f, 0.95f, 0.85f), m_floorTexture(0), m_floorY(1.5f) {
     g_gameInstance = this;
 }
 
 Game::~Game() { cleanup(); }
 
-// ---- Пол ----
-void Game::setupFloor() {
-    // Большая плоская плоскость 40x40
-    float s = 20.0f;
-    float y = 0.0f;
-    float t = 10.0f;  // тайлинг текстуры
-    float verts[] = {
-        //  x     y   z      nx   ny   nz    u    v
-        -s,
-        y,
-        -s,
-        0,
-        1,
-        0,
-        0,
-        0,
-        s,
-        y,
-        -s,
-        0,
-        1,
-        0,
-        t,
-        0,
-        s,
-        y,
-        s,
-        0,
-        1,
-        0,
-        t,
-        t,
-        s,
-        y,
-        s,
-        0,
-        1,
-        0,
-        t,
-        t,
-        -s,
-        y,
-        s,
-        0,
-        1,
-        0,
-        0,
-        t,
-        -s,
-        y,
-        -s,
-        0,
-        1,
-        0,
-        0,
-        0,
-    };
-    glGenVertexArrays(1, &m_floorVAO);
-    glGenBuffers(1, &m_floorVBO);
-    glBindVertexArray(m_floorVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_floorVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
 
-    // position
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    // normal
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    // texCoord
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+// ------- collisions ---------
+bool Game::checkTreeCollision(glm::vec3 nextPos) {
+    const float playerRadius = 0.3f;
+    const float treeRadius = 0.5f;
+    const float minDist = playerRadius + treeRadius;
 
-    glBindVertexArray(0);
-
-    // Простая шахматная текстура 64x64
-    glGenTextures(1, &m_floorTexture);
-    glBindTexture(GL_TEXTURE_2D, m_floorTexture);
-    const int SZ = 64;
-    unsigned char pixels[SZ * SZ * 3];
-    for (int py = 0; py < SZ; py++) {
-        for (int px = 0; px < SZ; px++) {
-            bool w = ((px / 8 + py / 8) % 2) == 0;
-            int idx = (py * SZ + px) * 3;
-            pixels[idx + 0] = w ? 100 : 60;
-            pixels[idx + 1] = w ? 120 : 80;
-            pixels[idx + 2] = w ? 80 : 50;
+    // Теперь бегаем по структуре TreeInstance
+    for (const auto& tree : m_trees) {
+        float dx = nextPos.x - tree.pos.x;
+        float dz = nextPos.z - tree.pos.z;
+        if (dx * dx + dz * dz < minDist * minDist) {
+            return true;
         }
     }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SZ, SZ, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-void Game::renderFloor() {
-    glm::mat4 model = glm::mat4(1.0f);
-    m_shader.setMat4("model", model);
-    m_shader.setMat3("normalMatrix", glm::mat3(1.0f));
-    m_shader.setVec4("baseColorFactor", glm::vec4(1.0f));
-    m_shader.setBool("hasTexture", true);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_floorTexture);
-    m_shader.setInt("texture_diffuse0", 0);
-
-    glBindVertexArray(m_floorVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
+    // Кусты здесь НЕ проверяем, поэтому сквозь них можно ходить!
+    return false;
 }
 
 // ---- Init ----
@@ -154,19 +59,45 @@ bool Game::init(int width, int height, const char* title) {
     }
 
     // Модель дерева — файл называется Tree1.glb
-    if (!m_tree.load("assets/Tree1.glb")) {
-        std::cerr << "Failed to load Tree1.glb!" << std::endl;
-        return false;
+    m_treeModels.resize(3);
+    m_treeModels[0].load("assets/Tree1.glb");
+    m_treeModels[1].load("assets/Tree2.glb");
+    m_treeModels[2].load("assets/Tree3.glb");
+
+    // Загружаю куст
+    m_bushModel.load("assets/Bush.glb");
+
+    // Загружаю землю
+    m_terrain.init("assets/Grass.png");
+
+    std::cout << "Init OK. WASD = move, Mouse = look, Scroll = FOV, ESC = exit" << std::endl;
+
+    for (int i = 0; i < 30; ++i) {
+        float tx = (rand() % 4000 / 100.0f) - 20.0f;
+        float tz = (rand() % 4000 / 100.0f) - 20.0f;
+        float ty = m_terrain.getHeight(tx, tz);
+
+        TreeInstance t;
+        t.pos = glm::vec3(tx, ty, tz);
+        t.type = rand() % 3; // Рандомно выбираем модель 0, 1 или 2
+        m_trees.push_back(t);
     }
 
-    setupFloor();
-    std::cout << "Init OK. WASD = move, Mouse = look, Scroll = FOV, ESC = exit" << std::endl;
+    for (int i = 0; i < 50; ++i) {
+        float bx = (rand() % 4000 / 100.0f) - 20.0f;
+        float bz = (rand() % 4000 / 100.0f) - 20.0f;
+        float by = m_terrain.getHeight(bx, bz);
+        m_bushes.push_back(glm::vec3(bx, by, bz));
+    }
+
+    // Стартовая позиция камеры на новой поверхности
+    m_cameraPos.y = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
     return true;
 }
 
 // ---- Loop ----
 void Game::run() {
-    float last = 0.0f;
+    float last = (float)glfwGetTime();
     while (!m_window->shouldClose()) {
         float now = (float)glfwGetTime();
         float dt = now - last;
@@ -183,19 +114,41 @@ void Game::run() {
 // ---- Input ----
 void Game::processInput(float dt) {
     GLFWwindow* w = m_window->getGLFWwindow();
-    float speed = 5.0f * dt;
 
-    // Горизонтальное движение — вектор без Y
+    // Ускорение
+    float speed = (glfwGetKey(w, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) ? 10.0f : 5.0f;
+    speed *= dt;
+
     glm::vec3 flatFront = glm::normalize(glm::vec3(m_cameraFront.x, 0.0f, m_cameraFront.z));
     glm::vec3 right = glm::normalize(glm::cross(flatFront, m_cameraUp));
 
-    if (glfwGetKey(w, GLFW_KEY_W) == GLFW_PRESS) m_cameraPos += flatFront * speed;
-    if (glfwGetKey(w, GLFW_KEY_S) == GLFW_PRESS) m_cameraPos -= flatFront * speed;
-    if (glfwGetKey(w, GLFW_KEY_A) == GLFW_PRESS) m_cameraPos -= right * speed;
-    if (glfwGetKey(w, GLFW_KEY_D) == GLFW_PRESS) m_cameraPos += right * speed;
+    auto moveWithCollision = [&](glm::vec3 direction) {
+        glm::vec3 nextPos = m_cameraPos + direction;
+        if (!checkTreeCollision(nextPos)) {
+            m_cameraPos = nextPos;
+        }
+        };
 
-    // Камера всегда на высоте пола (FPS-стиль)
-    m_cameraPos.y = m_floorY;
+    if (glfwGetKey(w, GLFW_KEY_W) == GLFW_PRESS) moveWithCollision(flatFront * speed);
+    if (glfwGetKey(w, GLFW_KEY_S) == GLFW_PRESS) moveWithCollision(-flatFront * speed);
+    if (glfwGetKey(w, GLFW_KEY_A) == GLFW_PRESS) moveWithCollision(-right * speed);
+    if (glfwGetKey(w, GLFW_KEY_D) == GLFW_PRESS) moveWithCollision(right * speed);
+
+    // Прыжок и гравитация
+    if (glfwGetKey(w, GLFW_KEY_SPACE) == GLFW_PRESS && m_isGrounded) {
+        m_velocityY = m_jumpForce;
+        m_isGrounded = false;
+    }
+    m_velocityY += m_gravity * dt;
+    m_cameraPos.y += m_velocityY * dt;
+
+    // Высота берется строго из Terrain
+    float groundY = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
+    if (m_cameraPos.y <= groundY) {
+        m_cameraPos.y = groundY;
+        m_velocityY = 0.0f;
+        m_isGrounded = true;
+    }
 
     if (glfwGetKey(w, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(w, true);
@@ -228,24 +181,27 @@ void Game::render() {
     m_shader.setVec3("viewPos", m_cameraPos);
     m_shader.setFloat("ambientStrength", 0.35f);
 
-    // Рисуем пол
-    renderFloor();
+    m_terrain.render(m_shader);
 
-    // Рисуем дерево: позиция (0,0,0), масштаб подберите под вашу модель
-    m_tree.render(m_shader, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
+    // Рисую кусты
+    for (const auto& pos : m_bushes) {
+        m_bushModel.render(m_shader, pos, 3.0f);
+    }
+
+    // Рисуем деревья
+    for (const auto& tree : m_trees) {
+        // Берем модель нужного типа и рисуем ее по позиции
+        m_treeModels[tree.type].render(m_shader, tree.pos, 1.0f);
+    }
 }
 
 // ---- Cleanup ----
 void Game::cleanup() {
-    m_tree.cleanup();
-    if (m_floorVAO) {
-        glDeleteVertexArrays(1, &m_floorVAO);
-        m_floorVAO = 0;
+    for (auto& tree : m_treeModels) {
+        tree.cleanup();
     }
-    if (m_floorVBO) {
-        glDeleteBuffers(1, &m_floorVBO);
-        m_floorVBO = 0;
-    }
+    m_bushModel.cleanup();
+
     if (m_floorTexture) {
         glDeleteTextures(1, &m_floorTexture);
         m_floorTexture = 0;

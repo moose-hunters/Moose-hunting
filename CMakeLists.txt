@@ -47,7 +47,7 @@ add_executable(${PROJECT_NAME}
     src/Game.cpp
     src/Tree.cpp
     src/shader.cpp
-)
+    src/Terrain.cpp)
 
 # ========== ЗАГОЛОВКИ ==========
 target_include_directories(${PROJECT_NAME} PRIVATE

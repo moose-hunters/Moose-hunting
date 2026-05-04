@@ -5,6 +5,14 @@
 #include "Window.h"
 #include "shader.h"
 #include "Tree.h"
+#include "Terrain.h"
+#include <vector>
+
+struct TreeInstance {
+    glm::vec3 pos;
+    int type; // Индекс модели (0, 1 или 2)
+};
+
 
 class Game {
    public:
@@ -16,6 +24,7 @@ class Game {
 
    private:
     Window* m_window;
+    Terrain m_terrain;
     int m_width, m_height;
 
     // Камера
@@ -33,22 +42,35 @@ class Game {
     glm::vec3 m_lightColor;
 
     Shader m_shader;
-    Tree m_tree;
 
     // Пол
-    GLuint m_floorVAO, m_floorVBO;
     GLuint m_floorTexture;
-    void setupFloor();
-    void renderFloor();
 
     void processInput(float deltaTime);
     void updateCamera();
     void render();
     void cleanup();
 
+    bool checkTreeCollision(glm::vec3 nextPos);
+
     static void mouseCallback(GLFWwindow* w, double x, double y);
     static void scrollCallback(GLFWwindow* w, double xoff, double yoff);
 
     // Ограничиваем Y камеры (ходим по полу)
     float m_floorY = 1.5f;
+
+    // Деревья
+    std::vector<Tree> m_treeModels;
+    std::vector<TreeInstance> m_trees;
+
+    // Кусты
+    Tree m_bushModel;
+    std::vector<glm::vec3> m_bushes;
+
+    // Физика прыжка
+    float m_velocityY = 0.0f;
+    bool m_isGrounded = true;
+    const float m_gravity = -15.0f;
+    const float m_jumpForce = 7.0f;
+    const float m_cameraHeight = 1.5f; // Рост персонажа
 };
