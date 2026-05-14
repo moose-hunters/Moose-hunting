@@ -7,6 +7,9 @@
 #include "Tree.h"
 #include "Terrain.h"
 #include <vector>
+#include <enet/enet.h>
+#include "Protocol.h"
+#include <map>
 
 struct TreeInstance {
     glm::vec3 pos;
@@ -19,6 +22,12 @@ struct BushInstance {
     float scale;
 };
 
+enum class GameState {
+    SPLASH,
+    MENU,
+    CONNECTING,
+    PLAYING
+};
 
 class Game {
    public:
@@ -32,6 +41,12 @@ class Game {
     Window* m_window;
     Terrain m_terrain;
     int m_width, m_height;
+
+    // Состояния игры
+    GameState m_state = GameState::SPLASH;
+    float m_stateTimer = 0.0f;
+    std::string m_serverIP;
+    EntityType m_selectedRole = EntityType::HUNTER;
 
     // Камера
     glm::vec3 m_cameraPos;
@@ -89,4 +104,24 @@ class Game {
     const float m_gravity = -15.0f;
     const float m_jumpForce = 7.0f;
     const float m_cameraHeight = 1.5f; // Рост персонажа
+
+    // Сеть
+    ENetHost* m_clientHost = nullptr;
+    ENetPeer* m_serverPeer = nullptr;
+    int m_myId = 0;
+    EntityType m_myRole = EntityType::HUNTER;
+
+    struct EnemyState {
+        EntityType role;
+        glm::vec3 pos;
+        float yaw;
+        bool active = false;
+    };
+    EnemyState m_enemy;
+
+    void processNetwork();
+    // Отрисовка состояний
+    void renderSplash();
+    void renderMenu();
+    void renderGame();
 };

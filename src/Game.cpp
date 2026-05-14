@@ -126,6 +126,11 @@ bool Game::init(int width, int height, const char* title) {
 
     // Стартовая позиция камеры на новой поверхности
     m_cameraPos.y = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
+
+    // --- НАСТРОЙКА СЕТИ ---
+    // Инициализация сети (без подключения, ждем выбора в меню)
+    if (enet_initialize() != 0) return false;
+    m_clientHost = enet_host_create(NULL, 1, 2, 0, 0);
     return true;
 }
 
@@ -138,7 +143,15 @@ void Game::run() {
         last = now;
 
         processInput(dt);
-        updateMoose(dt);
+
+        if (m_state == GameState::CONNECTING || m_state == GameState::PLAYING) {
+            processNetwork();
+        }
+
+        if (m_state == GameState::PLAYING) {
+            updateMoose(dt);
+        }
+        // updateMoose(dt);
         render();
 
         m_window->swapBuffers();
@@ -150,43 +163,62 @@ void Game::run() {
 void Game::processInput(float dt) {
     GLFWwindow* w = m_window->getGLFWwindow();
 
-    // Ускорение
-    float speed = (glfwGetKey(w, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) ? 10.0f : 5.0f;
-    speed *= dt;
-
-    glm::vec3 flatFront = glm::normalize(glm::vec3(m_cameraFront.x, 0.0f, m_cameraFront.z));
-    glm::vec3 right = glm::normalize(glm::cross(flatFront, m_cameraUp));
-
-    auto moveWithCollision = [&](glm::vec3 direction) {
-        glm::vec3 nextPos = m_cameraPos + direction;
-        if (!checkTreeCollision(nextPos)) {
-            m_cameraPos = nextPos;
-        }
-        };
-
-    if (glfwGetKey(w, GLFW_KEY_W) == GLFW_PRESS) moveWithCollision(flatFront * speed);
-    if (glfwGetKey(w, GLFW_KEY_S) == GLFW_PRESS) moveWithCollision(-flatFront * speed);
-    if (glfwGetKey(w, GLFW_KEY_A) == GLFW_PRESS) moveWithCollision(-right * speed);
-    if (glfwGetKey(w, GLFW_KEY_D) == GLFW_PRESS) moveWithCollision(right * speed);
-
-    // Прыжок и гравитация
-    if (glfwGetKey(w, GLFW_KEY_SPACE) == GLFW_PRESS && m_isGrounded) {
-        m_velocityY = m_jumpForce;
-        m_isGrounded = false;
-    }
-    m_velocityY += m_gravity * dt;
-    m_cameraPos.y += m_velocityY * dt;
-
-    // Высота берется из Terrain
-    float groundY = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
-    if (m_cameraPos.y <= groundY) {
-        m_cameraPos.y = groundY;
-        m_velocityY = 0.0f;
-        m_isGrounded = true;
-    }
-
     if (glfwGetKey(w, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(w, true);
+
+    if (m_state == GameState::SPLASH) {
+        m_stateTimer += dt;
+        if (m_stateTimer > 1.0f) {
+            m_state = GameState::MENU;
+            std::cout << "[MENU] Press '1' to play as Moose, '2' to play as Hunter." << std::endl;
+        }
+    } else if (m_state == GameState::MENU) {
+        if (glfwGetKey(w, GLFW_KEY_1) == GLFW_PRESS || glfwGetKey(w, GLFW_KEY_2) == GLFW_PRESS) {
+            m_selectedRole = (glfwGetKey(w, GLFW_KEY_1) == GLFW_PRESS) ? EntityType::MOOSE : EntityType::HUNTER;
+            m_state = GameState::CONNECTING;
+
+            std::cout << "[CLIENT] Connecting to " << m_serverIP << "..." << std::endl;
+            ENetAddress address;
+            enet_address_set_host(&address, m_serverIP.c_str());
+            address.port = 12345;
+            m_serverPeer = enet_host_connect(m_clientHost, &address, 2, 0);
+        }
+    } else if (m_state == GameState::PLAYING) {
+        // Ускорение
+        float speed = (glfwGetKey(w, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) ? 10.0f : 5.0f;
+        speed *= dt;
+
+        glm::vec3 flatFront = glm::normalize(glm::vec3(m_cameraFront.x, 0.0f, m_cameraFront.z));
+        glm::vec3 right = glm::normalize(glm::cross(flatFront, m_cameraUp));
+
+        auto moveWithCollision = [&](glm::vec3 direction) {
+            glm::vec3 nextPos = m_cameraPos + direction;
+            if (!checkTreeCollision(nextPos)) {
+                m_cameraPos = nextPos;
+            }
+        };
+
+        if (glfwGetKey(w, GLFW_KEY_W) == GLFW_PRESS) moveWithCollision(flatFront * speed);
+        if (glfwGetKey(w, GLFW_KEY_S) == GLFW_PRESS) moveWithCollision(-flatFront * speed);
+        if (glfwGetKey(w, GLFW_KEY_A) == GLFW_PRESS) moveWithCollision(-right * speed);
+        if (glfwGetKey(w, GLFW_KEY_D) == GLFW_PRESS) moveWithCollision(right * speed);
+
+        // Прыжок и гравитация
+        if (glfwGetKey(w, GLFW_KEY_SPACE) == GLFW_PRESS && m_isGrounded) {
+            m_velocityY = m_jumpForce;
+            m_isGrounded = false;
+        }
+        m_velocityY += m_gravity * dt;
+        m_cameraPos.y += m_velocityY * dt;
+
+        // Высота берется из Terrain
+        float groundY = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
+        if (m_cameraPos.y <= groundY) {
+            m_cameraPos.y = groundY;
+            m_velocityY = 0.0f;
+            m_isGrounded = true;
+        }
+    }
 }
 
 // ---- Camera ----
@@ -201,35 +233,52 @@ void Game::updateCamera() {
 // ---- Render ----
 void Game::render() {
     m_window->clear();
-    updateCamera();
+    if (m_state == GameState::SPLASH) {
+        glClearColor(0.1f, 0.1f, 0.15f, 1.0f);  // Темная заставка
+    } else if (m_state == GameState::MENU || m_state == GameState::CONNECTING) {
+        glClearColor(0.2f, 0.2f, 0.3f, 1.0f);  // Серо-индиго фон меню
+    } else if (m_state == GameState::PLAYING) {
+        glClearColor(0.35f, 0.55f, 0.75f, 1.0f);  // Игровое небо
+        updateCamera();
 
-    glm::mat4 view = glm::lookAt(m_cameraPos, m_cameraPos + m_cameraFront, m_cameraUp);
-    glm::mat4 proj = glm::perspective(glm::radians(m_fov),
-        (float)m_width / (float)m_height,
-        0.1f, 200.0f);
+        glm::mat4 view = glm::lookAt(m_cameraPos, m_cameraPos + m_cameraFront, m_cameraUp);
+        glm::mat4 proj = glm::perspective(glm::radians(m_fov),
+            (float)m_width / (float)m_height,
+            0.1f, 200.0f);
 
-    m_shader.use();
-    m_shader.setMat4("view", view);
-    m_shader.setMat4("projection", proj);
-    m_shader.setVec3("lightPos", m_lightPos);
-    m_shader.setVec3("lightColor", m_lightColor);
-    m_shader.setVec3("viewPos", m_cameraPos);
-    m_shader.setFloat("ambientStrength", 0.35f);
+        m_shader.use();
+        m_shader.setMat4("view", view);
+        m_shader.setMat4("projection", proj);
+        m_shader.setVec3("lightPos", m_lightPos);
+        m_shader.setVec3("lightColor", m_lightColor);
+        m_shader.setVec3("viewPos", m_cameraPos);
+        m_shader.setFloat("ambientStrength", 0.35f);
 
-    m_terrain.render(m_shader);
+        m_terrain.render(m_shader);
 
-    // Рисуем кусты 
-    for (const auto& bush : m_bushes) {
-        m_bushModel.render(m_shader, bush.pos, bush.scale);
+        // Рисуем кусты
+        for (const auto& bush : m_bushes) {
+            m_bushModel.render(m_shader, bush.pos, bush.scale);
+        }
+
+        // Рисуем деревья
+        for (const auto& tree : m_trees) {
+            m_treeModels[tree.type].render(m_shader, tree.pos, tree.scale);
+        }
+
+        // Рисуем лося
+        m_mooseModel.render(m_shader, m_moosePos, 0.5f);
+
+        if (m_enemy.active) {
+            if (m_enemy.role == EntityType::MOOSE) {
+                // Рисуем модель лося по вражеским координатам
+                m_mooseModel.render(m_shader, m_enemy.pos, 0.5f);
+            } else {
+                // TODO: У тебя пока нет модели Охотника. Для теста можешь рисовать куст :)
+                m_bushModel.render(m_shader, m_enemy.pos, 1.0f);
+            }
+        }
     }
-
-    // Рисуем деревья
-    for (const auto& tree : m_trees) {
-        m_treeModels[tree.type].render(m_shader, tree.pos, tree.scale);
-    }
-
-    // Рисуем лося
-    m_mooseModel.render(m_shader, m_moosePos, 0.5f);
 }
 
 // ---- Cleanup ----
@@ -277,4 +326,49 @@ void Game::scrollCallback(GLFWwindow*, double, double yoff) {
     g_gameInstance->m_fov -= (float)yoff * 2.0f;
     if (g_gameInstance->m_fov < 10.0f) g_gameInstance->m_fov = 10.0f;
     if (g_gameInstance->m_fov > 90.0f) g_gameInstance->m_fov = 90.0f;
+}
+
+void Game::processNetwork() {
+    if (!m_clientHost) return;
+
+    ENetEvent event;
+    while (enet_host_service(m_clientHost, &event, 0) > 0) {
+        if (event.type == ENET_EVENT_TYPE_CONNECT) {
+            std::cout << "[CLIENT] Connected! Requesting role..." << std::endl;
+            PacketJoinRequest req;
+            req.requestedRole = m_selectedRole;
+            ENetPacket* packet = enet_packet_create(&req, sizeof(PacketJoinRequest), ENET_PACKET_FLAG_RELIABLE);
+            enet_peer_send(m_serverPeer, 0, packet);
+        } else if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+            PacketHeader* header = reinterpret_cast<PacketHeader*>(event.packet->data);
+
+            if (header->type == PacketType::INIT) {
+                PacketInit* initData = reinterpret_cast<PacketInit*>(event.packet->data);
+                m_myId = initData->myId;
+                m_myRole = initData->myRole;
+                m_state = GameState::PLAYING;
+                std::cout << "[CLIENT] Server confirmed Role: " << (int)m_myRole << ". GAME START!" << std::endl;
+            } else if (header->type == PacketType::UPDATE && m_state == GameState::PLAYING) {
+                PacketUpdate* updateData = reinterpret_cast<PacketUpdate*>(event.packet->data);
+                m_enemy.active = true;
+                m_enemy.role = updateData->role;
+                m_enemy.pos = glm::vec3(updateData->x, updateData->y, updateData->z);
+                m_enemy.yaw = updateData->yaw;
+            }
+            enet_packet_destroy(event.packet);
+        }
+    }
+
+    if (m_state == GameState::PLAYING && m_myId != 0 && m_serverPeer && m_serverPeer->state == ENET_PEER_STATE_CONNECTED) {
+        PacketUpdate myUpdate;
+        myUpdate.playerId = m_myId;
+        myUpdate.role = m_myRole;
+        myUpdate.x = m_cameraPos.x;
+        myUpdate.y = m_cameraPos.y;
+        myUpdate.z = m_cameraPos.z;
+        myUpdate.yaw = m_yaw;
+
+        ENetPacket* packet = enet_packet_create(&myUpdate, sizeof(PacketUpdate), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
+        enet_peer_send(m_serverPeer, 1, packet);
+    }
 }
