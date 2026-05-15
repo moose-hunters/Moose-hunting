@@ -18,6 +18,7 @@ class Window {
     void setScrollCallback(GLFWscrollfun callback);
 
     GLFWwindow* getGLFWwindow() const { return m_window; }
+
     int getWidth() const { return m_width; }
     int getHeight() const { return m_height; }
 

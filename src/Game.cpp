@@ -6,7 +6,7 @@
 static Game* g_gameInstance = nullptr;
 
 Game::Game()
-    : m_window(nullptr), m_width(1024), m_height(768), m_cameraPos(0.0f, 1.5f, 8.0f), m_cameraFront(0.0f, 0.0f, -1.0f), m_cameraUp(0.0f, 1.0f, 0.0f), m_yaw(-90.0f), m_pitch(0.0f), m_lastX(512.0f), m_lastY(384.0f), m_firstMouse(true), m_fov(45.0f), m_lightPos(5.0f, 10.0f, 5.0f), m_lightColor(1.0f, 0.95f, 0.85f), m_floorTexture(0), m_floorY(1.5f) {
+    : m_window(nullptr), m_width(1024), m_height(768), m_cameraPos(0.0f, 1.5f, 8.0f), m_cameraFront(0.0f, 0.0f, -1.0f), m_cameraUp(0.0f, 1.0f, 0.0f), m_yaw(-90.0f), m_pitch(0.0f), m_lastX(512.0f), m_lastY(384.0f), m_firstMouse(true), m_fov(45.0f), m_lightPos(5.0f, 10.0f, 5.0f), m_lightColor(1.0f, 0.95f, 0.85f), m_floorTexture(0), m_floorY(1.5f), m_shootCooldown(0.0f), m_maxCooldown(0.5f), m_wasLMBPressed(false) {
     g_gameInstance = this;
 }
 
@@ -126,6 +126,19 @@ bool Game::init(int width, int height, const char* title) {
 
     // Стартовая позиция камеры на новой поверхности
     m_cameraPos.y = m_terrain.getHeight(m_cameraPos.x, m_cameraPos.z) + m_cameraHeight;
+    
+    // шейдеры для 2д картинки
+    m_uiShader.load("shaders/ui_vertex.glsl", "shaders/ui_fragment.glsl");
+    setupUI();
+
+    // спрайты перезарядки
+    for (int i = 1; i <= 8; i++) {
+        std::string path = "assets/reloading/reload_" + std::to_string(i) + ".png";
+        m_gunFrames.push_back(loadTexture(path.c_str()));
+    }
+
+    m_gunShader.load("shaders/gun_vertex.glsl", "shaders/gun_fragment.glsl");
+    setupGunUI();
     return true;
 }
 
@@ -139,6 +152,7 @@ void Game::run() {
 
         processInput(dt);
         updateMoose(dt);
+        updateGunAnimation(dt);
         render();
 
         m_window->swapBuffers();
@@ -187,6 +201,58 @@ void Game::processInput(float dt) {
 
     if (glfwGetKey(w, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(w, true);
+
+
+    // --- Механика стрельбы ---
+    if (m_shootCooldown > 0.0f) {
+        m_shootCooldown -= dt;
+    }
+
+    bool isLMBPressed = glfwGetMouseButton(m_window->getGLFWwindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
+    // Обрабатываем только одиночный клик (чтобы нельзя было зажать кнопку)
+    if (isLMBPressed && !m_wasLMBPressed) {
+        if (m_shootCooldown <= 0.0f) { // Если перезарядились
+            if (checkMooseHit()) {
+                std::cout << "HIT! Moose down!" << std::endl;
+                // Телепортируем лося в случайное место после попадания
+                m_moosePos = glm::vec3((rand() % 40) - 20, 1.5f, (rand() % 40) - 20);
+            }
+            else {
+                std::cout << "MISS!" << std::endl;
+            }
+            m_shootCooldown = m_maxCooldown; // Уходим на перезарядку
+        }
+    }
+    m_wasLMBPressed = isLMBPressed;
+}
+
+GLuint Game::loadTexture(const char* path) {
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    int width, height, nrComponents;
+    // Для UI текстур лучше не переворачивать картинку по вертикали
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+
+    if (data) {
+        GLenum format = (nrComponents == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else {
+        std::cerr << "Failed to load gun texture: " << path << std::endl;
+        stbi_image_free(data);
+    }
+    return textureID;
 }
 
 // ---- Camera ----
@@ -228,8 +294,172 @@ void Game::render() {
         m_treeModels[tree.type].render(m_shader, tree.pos, tree.scale);
     }
 
-    // Рисуем лося
-    m_mooseModel.render(m_shader, m_moosePos, 0.5f);
+    // рисуем лося
+    float angle = glm::degrees(atan2(m_mooseDir.x, m_mooseDir.y));
+    m_mooseModel.render(m_shader, m_moosePos, 0.5f, angle);
+
+    // В САМОМ КОНЦЕ рисуем UI поверх всего:
+    renderUI();
+    renderGun();
+}
+
+bool Game::checkMooseHit() {
+    const float MOOSE_HIT_RADIUS = 1.2f; // Немного уменьшим радиус, раз точка точнее
+
+    // ИСПРАВЛЕНИЕ: Поднимаем точку еще выше (на 2.2 метра)
+    glm::vec3 mooseCenter = m_moosePos + glm::vec3(0.0f, 3.0f, 0.0f);
+
+    glm::vec3 toMoose = mooseCenter - m_cameraPos;
+
+    if (glm::dot(m_cameraFront, glm::normalize(toMoose)) < 0.0f) return false;
+
+    glm::vec3 crossProd = glm::cross(toMoose, m_cameraFront);
+    float distToRay = glm::length(crossProd);
+
+    return distToRay <= MOOSE_HIT_RADIUS;
+}
+
+
+void Game::setupUI() {
+    glGenVertexArrays(1, &m_uiVAO);
+    glGenBuffers(1, &m_uiVBO);
+    glBindVertexArray(m_uiVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_uiVBO);
+    // Память под 4 вершины (x, y)
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 4 * 2, nullptr, GL_DYNAMIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+}
+
+
+void Game::renderUI() {
+    glDisable(GL_DEPTH_TEST); // UI рисуется поверх всего мира
+    m_uiShader.use();
+
+    // 2D Матрица экрана
+    glm::mat4 projection = glm::ortho(0.0f, (float)m_width, 0.0f, (float)m_height);
+    m_uiShader.setMat4("projection", projection);
+
+    glBindVertexArray(m_uiVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_uiVBO);
+
+    // 1. Крестик по центру экрана
+    float cx = m_width / 2.0f;
+    float cy = m_height / 2.0f;
+    float size = 15.0f; // Размер крестика
+    float crosshairVerts[] = {
+        cx - size, cy, cx + size, cy, // Горизонтальная линия
+        cx, cy - size, cx, cy + size  // Вертикальная линия
+    };
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(crosshairVerts), crosshairVerts);
+
+    // Цвет: зеленый если готовы стрелять, красный если перезарядка
+    glm::vec3 crossColor = (m_shootCooldown <= 0.0f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+    m_uiShader.setVec3("color", crossColor);
+
+    glLineWidth(2.0f); // Делаем крестик потолще
+    glDrawArrays(GL_LINES, 0, 4);
+    glLineWidth(1.0f); // Возвращаем как было
+
+    // 2. Полоска перезарядки в правом нижнем углу
+    float barW = 150.0f, barH = 20.0f, pad = 20.0f;
+    float bx1 = m_width - barW - pad;
+    float by1 = pad;
+    float bx2 = m_width - pad;
+    float by2 = pad + barH;
+
+    // Рисуем темный фон полоски
+    float bgVerts[] = { bx1, by1,  bx2, by1,  bx1, by2,  bx2, by2 };
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(bgVerts), bgVerts);
+    m_uiShader.setVec3("color", glm::vec3(0.2f, 0.2f, 0.2f));
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    // Рисуем заполнение полоски
+    if (m_shootCooldown > 0.0f) {
+        float progress = 1.0f - (m_shootCooldown / m_maxCooldown);
+        float curW = barW * progress;
+        float fillVerts[] = { bx1, by1,  bx1 + curW, by1,  bx1, by2,  bx1 + curW, by2 };
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(fillVerts), fillVerts);
+        m_uiShader.setVec3("color", glm::vec3(1.0f, 0.8f, 0.0f)); // Желтая полоска заполняется
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+    else {
+        m_uiShader.setVec3("color", glm::vec3(0.0f, 1.0f, 0.0f)); // Зеленая, когда готова
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+
+    glEnable(GL_DEPTH_TEST); // Включаем глубину обратно для 3D
+}
+
+void Game::setupGunUI() {
+    // Координаты прямоугольника (X, Y, U, V)
+    // Размещаем в нижней части экрана, по центру
+    float vertices[] = {
+        // Позиция (x, y)      // UV (u, v)
+        -0.4f, -1.0f,         0.0f, 0.0f, // Лево низ
+         0.4f, -1.0f,         1.0f, 0.0f, // Право низ
+        -0.4f, -0.2f,         0.0f, 1.0f, // Лево верх
+         0.4f, -0.2f,         1.0f, 1.0f  // Право верх
+    };
+
+    glGenVertexArrays(1, &m_gunVAO);
+    glGenBuffers(1, &m_gunVBO);
+
+    glBindVertexArray(m_gunVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_gunVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+}
+
+void Game::updateGunAnimation(float dt) {
+    // 1. Проверяем нажатие на левую кнопку мыши, если мы еще не стреляем
+    if (glfwGetMouseButton(m_window->getGLFWwindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !m_isShooting) {
+        m_isShooting = true;
+        m_currentGunFrame = 1; // Переходим к первому кадру вспышки
+        m_animationTimer = 0.0f;
+    }
+
+    // 2. Если процесс стрельбы идет — крутим таймер
+    if (m_isShooting) {
+        m_animationTimer += dt;
+        if (m_animationTimer >= m_frameDuration) {
+            m_animationTimer = 0.0f;
+            m_currentGunFrame++;
+
+            // 3. Если кадры закончились, возвращаемся в режим покоя (кадр 0)
+            if (m_currentGunFrame >= m_gunFrames.size()) {
+                m_currentGunFrame = 0;
+                m_isShooting = false;
+            }
+        }
+    }
+}
+
+void Game::renderGun() {
+    glDisable(GL_DEPTH_TEST); // Чтобы ружье не "тонуло" в текстурах земли
+    glEnable(GL_BLEND);       // Включаем прозрачность для PNG
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    m_gunShader.use(); // Отдельный простой шейдер (или основной, но с identity матрицами)
+
+    float aspect = (float)m_width / (float)m_height;
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::scale(model, glm::vec3(1.0f / aspect, 1.0f, 1.0f));
+    m_gunShader.setMat4("model", model);
+
+    glBindVertexArray(m_gunVAO);
+    glBindTexture(GL_TEXTURE_2D, m_gunFrames[m_currentGunFrame]);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
 }
 
 // ---- Cleanup ----
@@ -247,6 +477,9 @@ void Game::cleanup() {
     m_mooseModel.cleanup();
     delete m_window;
     m_window = nullptr;
+
+    if (m_uiVAO) glDeleteVertexArrays(1, &m_uiVAO);
+    if (m_uiVBO) glDeleteBuffers(1, &m_uiVBO);
 }
 
 // ---- Callbacks ----

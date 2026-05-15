@@ -56,7 +56,7 @@ class Tree {
     // Рисует с передачей матриц прямо внутрь
     void render(Shader& shader,
         const glm::vec3& position = glm::vec3(0.0f),
-        float scale = 1.0f);
+        float scale = 1.0f, float rotationY = 0.0f);
 
     void cleanup();
 

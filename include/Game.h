@@ -89,4 +89,33 @@ class Game {
     const float m_gravity = -15.0f;
     const float m_jumpForce = 7.0f;
     const float m_cameraHeight = 1.5f; // Рост персонажа
+
+    // --- UI и Стрельба ---
+    Shader m_uiShader;
+    GLuint m_uiVAO, m_uiVBO;
+
+    float m_shootCooldown;
+    float m_maxCooldown;
+    bool m_wasLMBPressed;
+
+    void setupUI();
+    void renderUI();
+    bool checkMooseHit();
+
+
+    GLuint m_gunVAO, m_gunVBO;
+    std::vector<GLuint> m_gunFrames; // IDs текстур: кадры 0-4
+    int m_currentGunFrame = 0;
+    bool m_isShooting = false;
+    float m_animationTimer = 0.0f;
+
+    const float m_frameDuration = 0.08f; // Скорость анимации (в секундах на кадр)
+
+    // Метод для загрузки кадра (можно использовать тот же stbi)
+    Shader m_gunShader;
+    GLuint loadTexture(const char* path);
+
+    void renderGun();
+    void updateGunAnimation(float dt);
+    void setupGunUI();
 };
