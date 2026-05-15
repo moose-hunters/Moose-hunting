@@ -113,10 +113,13 @@ class Game {
     float m_maxCooldown;
     bool m_wasLMBPressed;
 
+    // индикатор убийств
+    int m_kills = 0;
+
     void setupUI();
     void renderUI();
     bool checkMooseHit();
-
+    bool checkPlayerHit();
 
     GLuint m_gunVAO, m_gunVBO;
     std::vector<GLuint> m_gunFrames; // IDs текстур: кадры 0-4

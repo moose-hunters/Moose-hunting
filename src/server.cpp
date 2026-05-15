@@ -75,6 +75,26 @@ int main() {
                             enet_peer_send(targetPeer, 1, broadcastPacket);
                         }
                     }
+                } else if (header->type == PacketType::HIT) {
+                    std::cout << "[SERVER] Player " << peerToId[event.peer] << " recorded a HIT!" << std::endl;
+
+                    // 1. Сообщаем ВСЕМ ОСТАЛЬНЫМ, что их подбили (жертве)
+                    PacketHeader respawn;
+                    respawn.type = PacketType::RESPAWN;
+                    ENetPacket* respPacket = enet_packet_create(&respawn, sizeof(PacketHeader), ENET_PACKET_FLAG_RELIABLE);
+
+                    for (size_t i = 0; i < server->peerCount; ++i) {
+                        ENetPeer* targetPeer = &server->peers[i];
+                        if (targetPeer->state == ENET_PEER_STATE_CONNECTED && targetPeer != event.peer) {
+                            enet_peer_send(targetPeer, 0, respPacket);
+                        }
+                    }
+
+                    // 2. Подтверждаем попадание атакующему, чтобы он обновил счетчик
+                    PacketHeader killConfirm;
+                    killConfirm.type = PacketType::KILL_CONFIRM;
+                    ENetPacket* killPacket = enet_packet_create(&killConfirm, sizeof(PacketHeader), ENET_PACKET_FLAG_RELIABLE);
+                    enet_peer_send(event.peer, 0, killPacket);
                 }
                 enet_packet_destroy(event.packet);
             } else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {

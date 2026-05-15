@@ -7,7 +7,10 @@
 enum class PacketType : uint8_t {
     JOIN_REQUEST = 0,
     INIT = 1,
-    UPDATE = 2
+    UPDATE = 2,
+    HIT,           // Клиент говорит серверу: "Я попал!"
+    KILL_CONFIRM,  // Сервер говорит клиенту: "Ты убил, добавь очко!"
+    RESPAWN        // Сервер говорит клиенту: "Тебя убили, возродись!"
 };
 
 // Роли игроков
@@ -42,4 +45,10 @@ struct PacketUpdate {
     float yaw;
 };
 
+// пакет с попаданиями
+struct PacketHit {
+    PacketHeader header = {PacketType::HIT};
+    // В PvP 1 на 1 ID можно не слать, но для будущего оставим:
+    int victimId;
+};
 #pragma pack(pop)

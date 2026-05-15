@@ -163,12 +163,10 @@ void Game::run() {
         }
 
         if (m_state == GameState::PLAYING) {
-            updateMoose(dt);
+            // updateMoose(dt);
+            updateGunAnimation(dt);
         }
-        // updateMoose(dt);
-        updateGunAnimation(dt);
         render();
-
         m_window->swapBuffers();
         m_window->pollEvents();
     }
@@ -249,6 +247,15 @@ void Game::processInput(float dt) {
                     m_moosePos = glm::vec3((rand() % 40) - 20, 1.5f, (rand() % 40) - 20);
                 } else {
                     std::cout << "MISS!" << std::endl;
+                }
+                if (checkPlayerHit()) {
+                    std::cout << "PLAYER HIT!" << std::endl;
+
+                    // Отправляем серверу информацию о попадании
+                    PacketHit hit;
+                    hit.victimId = 0;  // В простом PvP с 2 игроками ID можно не уточнять
+                    ENetPacket* p = enet_packet_create(&hit, sizeof(PacketHit), ENET_PACKET_FLAG_RELIABLE);
+                    enet_peer_send(m_serverPeer, 0, p);
                 }
                 m_shootCooldown = m_maxCooldown;  // Уходим на перезарядку
             }
@@ -331,16 +338,18 @@ void Game::render() {
         }
 
         // рисуем лося
-        float angle = glm::degrees(atan2(m_mooseDir.x, m_mooseDir.y));
-        m_mooseModel.render(m_shader, m_moosePos, 0.5f, angle);
+        // float angle = glm::degrees(atan2(m_mooseDir.x, m_mooseDir.y));
+        // m_mooseModel.render(m_shader, m_moosePos, 0.5f, angle);
 
         if (m_enemy.active) {
+            glm::vec3 modelPos = m_enemy.pos;
+            modelPos.y -= m_cameraHeight;
             if (m_enemy.role == EntityType::MOOSE) {
                 // Рисуем модель лося по вражеским координатам
-                m_mooseModel.render(m_shader, m_enemy.pos, 0.5f);
+                m_mooseModel.render(m_shader, modelPos, 0.5f, m_enemy.yaw);
             } else {
-                // TODO: У тебя пока нет модели Охотника. Для теста можешь рисовать куст :)
-                m_bushModel.render(m_shader, m_enemy.pos, 1.0f);
+                // второй игрок тоже лось
+                m_mooseModel.render(m_shader, modelPos, 0.4f, m_enemy.yaw);
             }
         }
 
@@ -366,6 +375,19 @@ bool Game::checkMooseHit() {
     return distToRay <= MOOSE_HIT_RADIUS;
 }
 
+bool Game::checkPlayerHit() {
+    if (!m_enemy.active) return false;
+
+    const float HIT_RADIUS = 1.2f;
+    // Проверяем попадание во врага (учитываем, что центр модели ниже камеры)
+    glm::vec3 enemyCenter = m_enemy.pos - glm::vec3(0.0f, 0.5f, 0.0f);
+
+    glm::vec3 toEnemy = enemyCenter - m_cameraPos;
+    if (glm::dot(m_cameraFront, glm::normalize(toEnemy)) < 0.0f) return false;
+
+    glm::vec3 crossProd = glm::cross(toEnemy, m_cameraFront);
+    return glm::length(crossProd) <= HIT_RADIUS;
+}
 
 void Game::setupUI() {
     glGenVertexArrays(1, &m_uiVAO);
@@ -409,6 +431,26 @@ void Game::renderUI() {
     glLineWidth(2.0f); // Делаем крестик потолще
     glDrawArrays(GL_LINES, 0, 4);
     glLineWidth(1.0f); // Возвращаем как было
+
+    // --- 2. СЧЕТЧИК УБИЙСТВ (Сверху по центру) ---
+    float boxSize = 15.0f;
+    float spacing = 5.0f;
+    float totalW = m_kills * (boxSize + spacing);
+    float startX = (m_width - totalW) / 2.0f;  // Центрируем
+    float topY = m_height - 30.0f;             // Отступ сверху
+
+    m_uiShader.setVec3("color", glm::vec3(1.0f, 0.2f, 0.2f));  // Красные "зарубки"
+
+    for (int i = 0; i < m_kills; ++i) {
+        float x1 = startX + i * (boxSize + spacing);
+        float y1 = topY;
+        float x2 = x1 + boxSize;
+        float y2 = y1 + boxSize;
+
+        float killVerts[] = {x1, y1, x2, y1, x1, y2, x2, y2};
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(killVerts), killVerts);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
 
     // 2. Полоска перезарядки в правом нижнем углу
     float barW = 150.0f, barH = 20.0f, pad = 20.0f;
@@ -585,6 +627,16 @@ void Game::processNetwork() {
                 m_enemy.role = updateData->role;
                 m_enemy.pos = glm::vec3(updateData->x, updateData->y, updateData->z);
                 m_enemy.yaw = updateData->yaw;
+            } else if (header->type == PacketType::RESPAWN) {
+                // ТЕБЯ УБИЛИ
+                std::cout << "YOU DIED! Respawning..." << std::endl;
+                float rx = (rand() % 40) - 20.0f;
+                float rz = (rand() % 40) - 20.0f;
+                m_cameraPos = glm::vec3(rx, m_terrain.getHeight(rx, rz) + m_cameraHeight, rz);
+                m_velocityY = 0;
+            } else if (header->type == PacketType::KILL_CONFIRM) {
+                // ТЫ УБИЛ
+                m_kills++;  // Добавляем фраг в локальную переменную
             }
             enet_packet_destroy(event.packet);
         }
