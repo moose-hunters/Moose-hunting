@@ -22,6 +22,12 @@ struct BushInstance {
     float scale;
 };
 
+struct FenceInstance {
+    glm::vec3 pos;
+    float yaw; // Угол поворота (чтобы забор смотрел вдоль границы)
+    float scale;
+};
+
 enum class GameState {
     SPLASH,
     MENU,
@@ -97,6 +103,8 @@ class Game {
     
     void updateMoose(float dt);
 
+    Tree m_fenceModel;
+    std::vector<FenceInstance> m_fences;
 
     // Физика прыжка
     float m_velocityY = 0.0f;
@@ -149,6 +157,7 @@ class Game {
         float yaw;
         bool active = false;
     };
+
     EnemyState m_enemy;
 
     void processNetwork();

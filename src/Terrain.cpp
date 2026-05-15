@@ -1,8 +1,15 @@
 #include "Terrain.h"
+#include "Tree.h"
+#include "Game.h"
 #include <cmath>
 #include <vector>
 #include <iostream>
 #include "stb_image.h"
+#include <glm/gtc/noise.hpp>
+#include <glm/gtc/noise.hpp> // Для функции glm::perlin
+#include <glm/common.hpp>    // Для функции glm::smoothstep
+#include <cmath>             // Для std::abs
+#include <algorithm>         // Для std::min
 
 Terrain::Terrain() : m_vao(0), m_vbo(0), m_texture(0), m_vertexCount(0) {}
 
@@ -12,9 +19,31 @@ Terrain::~Terrain() {
     if (m_texture) glDeleteTextures(1, &m_texture);
 }
 
-float Terrain::getHeight(float x, float z) const {
-    // задаем ландшафт формулой
-    return 2.0f * sin(0.1f * x) * cos(0.1f * z) + 0.5f * sin(0.5f * x) * cos(0.5f * z);
+float Terrain::getHeight(float x, float z) const{
+    // 1. Генерируем естественные холмы с помощью шума Перлина
+    // 0.1f - масштаб холмов (чем меньше, тем шире холмы)
+    glm::vec2 pos = glm::vec2(x, z) * 0.1f;
+
+    // Умножаем на 2.5f для задания максимальной высоты рельефа
+    float baseHeight = glm::perlin(pos) * 2.5f;
+
+    // 2. Сглаживаем края карты для забора
+    const float MAP_LIMIT = 50.0f; // Ваша граница карты
+    const float EDGE_BLEND = 5.0f; // За 5 метров до края начинаем выравнивать землю
+
+    // Считаем расстояние до ближайшего края
+    float distToEdgeX = MAP_LIMIT - std::abs(x);
+    float distToEdgeZ = MAP_LIMIT - std::abs(z);
+    float minDistToEdge = (glm::min)(distToEdgeX, distToEdgeZ);
+
+    // Получаем коэффициент от 0.0 (мы на краю) до 1.0 (мы внутри)
+    float flattenFactor = glm::clamp(minDistToEdge / EDGE_BLEND, 0.0f, 1.0f);
+
+    // Smoothstep формула для идеальной плавности спуска
+    flattenFactor = flattenFactor * flattenFactor * (3.0f - 2.0f * flattenFactor);
+
+    // На краю flattenFactor будет 0, поэтому высота станет 0
+    return baseHeight * flattenFactor;
 }
 
 glm::vec3 Terrain::getNormal(float x, float z) const {

@@ -2,7 +2,6 @@
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 static Game* g_gameInstance = nullptr;
 
 Game::Game()
@@ -94,12 +93,34 @@ bool Game::init(int width, int height, const char* title) {
     // Загружаю землю
     m_terrain.init("assets/Grass.png");
 
+    m_fenceModel.load("assets/fence.glb", false);
+    const float MAP_LIMIT = 50.0f;
+    const float FENCE_SPACING = 1.8f; // ПОДБЕРИ ЭТО ЗНАЧЕНИЕ под длину забора
+
+    // 1. Верхняя и нижняя границы (идем по оси X)
+    for (float x = -MAP_LIMIT; x <= MAP_LIMIT + FENCE_SPACING / 2; x += FENCE_SPACING) {
+        // Верх (z = -20)
+        m_fences.push_back({ glm::vec3(x, 0.0f, -MAP_LIMIT), 0.0f, 1.0f });
+        // Низ (z = 20)
+        m_fences.push_back({ glm::vec3(x, 0.0f, MAP_LIMIT), 180.0f, 1.0f });
+    }
+
+    // 2. Левая и правая границы (идем по оси Z)
+    // Начинаем с отступом, чтобы секции на углах не накладывались друг на друга
+    for (float z = -MAP_LIMIT; z <= MAP_LIMIT; z += FENCE_SPACING) {
+        // Лево (x = -20)
+        m_fences.push_back({ glm::vec3(-MAP_LIMIT, 0.0f, z), 90.0f, 1.0f });
+        // Право (x = 20)
+        m_fences.push_back({ glm::vec3(MAP_LIMIT, 0.0f, z), -90.0f, 1.0f });
+    }
+
     std::cout << "Init OK. WASD = move, Mouse = look, ESC = exit" << std::endl;
 
 
-    for (int i = 0; i < 30; ++i) {
-        float tx = (rand() % 4000 / 100.0f) - 20.0f;
-        float tz = (rand() % 4000 / 100.0f) - 20.0f;
+
+    for (int i = 0; i < 50; ++i) {
+        float tx = (rand() % 10000 / 100.0f) - 50.0f;
+        float tz = (rand() % 10000 / 100.0f) - 50.0f;
         float ty = m_terrain.getHeight(tx, tz);
 
         TreeInstance t;
@@ -110,13 +131,13 @@ bool Game::init(int width, int height, const char* title) {
     }
 
     for (int i = 0; i < 50; ++i) {
-        float bx = (rand() % 4000 / 100.0f) - 20.0f;
-        float bz = (rand() % 4000 / 100.0f) - 20.0f;
+        float bx = (rand() % 10000 / 100.0f) - 50.0f;
+        float bz = (rand() % 10000 / 100.0f) - 50.0f;
         float by = m_terrain.getHeight(bx, bz);
 
         BushInstance b;
         b.pos = glm::vec3(bx, m_terrain.getHeight(bx, bz), bz);
-        b.scale = 0.6f + (rand() % 81) / 100.0f;
+        b.scale = (0.6f + (rand() % 81) / 100.0f) * 4;
         m_bushes.push_back(b);
     }
 
@@ -142,7 +163,7 @@ bool Game::init(int width, int height, const char* title) {
 
     // --- НАСТРОЙКА СЕТИ ---
     // Инициализация сети (без подключения, ждем выбора в меню)
-    m_serverIP = "26.186.206.213";
+    m_serverIP = "26.189.211.204";
     if (enet_initialize() != 0) return false;
     m_clientHost = enet_host_create(NULL, 1, 2, 0, 0);
     return true;
@@ -215,6 +236,12 @@ void Game::processInput(float dt) {
         if (glfwGetKey(w, GLFW_KEY_S) == GLFW_PRESS) moveWithCollision(-flatFront * speed);
         if (glfwGetKey(w, GLFW_KEY_A) == GLFW_PRESS) moveWithCollision(-right * speed);
         if (glfwGetKey(w, GLFW_KEY_D) == GLFW_PRESS) moveWithCollision(right * speed);
+
+        const float MAP_LIMIT = 49.9f;
+
+        // Ограничиваем X и Z, чтобы не уйти за края
+        m_cameraPos.x = glm::clamp(m_cameraPos.x, -MAP_LIMIT, MAP_LIMIT);
+        m_cameraPos.z = glm::clamp(m_cameraPos.z, -MAP_LIMIT, MAP_LIMIT);
 
         // Прыжок и гравитация
         if (glfwGetKey(w, GLFW_KEY_SPACE) == GLFW_PRESS && m_isGrounded) {
@@ -340,6 +367,11 @@ void Game::render() {
         // рисуем лося
         // float angle = glm::degrees(atan2(m_mooseDir.x, m_mooseDir.y));
         // m_mooseModel.render(m_shader, m_moosePos, 0.5f, angle);
+
+        // рисуем забор
+        for (const auto& fence : m_fences) {
+            m_fenceModel.render(m_shader, fence.pos, fence.scale, fence.yaw);
+        }
 
         if (m_enemy.active) {
             glm::vec3 modelPos = m_enemy.pos;
