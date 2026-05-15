@@ -340,9 +340,10 @@ GLuint Tree::createFallbackTexture(unsigned char r, unsigned char g, unsigned ch
 
 void Tree::render(Shader& shader,
     const glm::vec3& position,
-    float scale) {
+    float scale, float rotationY) {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, position);
+    model = glm::rotate(model, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f)); // Поворот вокруг оси Y
     model = glm::scale(model, glm::vec3(scale));
     shader.setMat4("model", model);
 

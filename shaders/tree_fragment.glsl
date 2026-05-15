@@ -20,6 +20,10 @@ void main() {
     vec4 texColor = hasTexture
         ? texture(texture_diffuse0, TexCoords) * baseColorFactor
         : baseColorFactor;
+    
+    if(texColor.a < 0.1) {
+        discard; // Если пиксель прозрачный - просто выкидываем его, не пишем в буфер!
+    }
 
     // Нормали
     vec3 norm    = normalize(Normal);
