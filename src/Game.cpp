@@ -129,6 +129,7 @@ bool Game::init(int width, int height, const char* title) {
 
     // --- НАСТРОЙКА СЕТИ ---
     // Инициализация сети (без подключения, ждем выбора в меню)
+    m_serverIP = "26.186.206.213";
     if (enet_initialize() != 0) return false;
     m_clientHost = enet_host_create(NULL, 1, 2, 0, 0);
     return true;
