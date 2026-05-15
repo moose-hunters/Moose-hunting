@@ -233,31 +233,28 @@ void Game::processInput(float dt) {
             m_velocityY = 0.0f;
             m_isGrounded = true;
         }
-    }
-
-
-    // --- Механика стрельбы ---
-    if (m_shootCooldown > 0.0f) {
-        m_shootCooldown -= dt;
-    }
-
-    bool isLMBPressed = glfwGetMouseButton(m_window->getGLFWwindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-
-    // Обрабатываем только одиночный клик (чтобы нельзя было зажать кнопку)
-    if (isLMBPressed && !m_wasLMBPressed) {
-        if (m_shootCooldown <= 0.0f) { // Если перезарядились
-            if (checkMooseHit()) {
-                std::cout << "HIT! Moose down!" << std::endl;
-                // Телепортируем лося в случайное место после попадания
-                m_moosePos = glm::vec3((rand() % 40) - 20, 1.5f, (rand() % 40) - 20);
-            }
-            else {
-                std::cout << "MISS!" << std::endl;
-            }
-            m_shootCooldown = m_maxCooldown; // Уходим на перезарядку
+        // --- Механика стрельбы ---
+        if (m_shootCooldown > 0.0f) {
+            m_shootCooldown -= dt;
         }
+
+        bool isLMBPressed = glfwGetMouseButton(m_window->getGLFWwindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
+        // Обрабатываем только одиночный клик (чтобы нельзя было зажать кнопку)
+        if (isLMBPressed && !m_wasLMBPressed) {
+            if (m_shootCooldown <= 0.0f) {  // Если перезарядились
+                if (checkMooseHit()) {
+                    std::cout << "HIT! Moose down!" << std::endl;
+                    // Телепортируем лося в случайное место после попадания
+                    m_moosePos = glm::vec3((rand() % 40) - 20, 1.5f, (rand() % 40) - 20);
+                } else {
+                    std::cout << "MISS!" << std::endl;
+                }
+                m_shootCooldown = m_maxCooldown;  // Уходим на перезарядку
+            }
+        }
+        m_wasLMBPressed = isLMBPressed;
     }
-    m_wasLMBPressed = isLMBPressed;
 }
 
 GLuint Game::loadTexture(const char* path) {
@@ -335,11 +332,22 @@ void Game::render() {
 
         // рисуем лося
         float angle = glm::degrees(atan2(m_mooseDir.x, m_mooseDir.y));
-    m_mooseModel.render(m_shader, m_moosePos, 0.5f, angle);
+        m_mooseModel.render(m_shader, m_moosePos, 0.5f, angle);
 
-    // В САМОМ КОНЦЕ рисуем UI поверх всего:
-    renderUI();
-    renderGun();
+        if (m_enemy.active) {
+            if (m_enemy.role == EntityType::MOOSE) {
+                // Рисуем модель лося по вражеским координатам
+                m_mooseModel.render(m_shader, m_enemy.pos, 0.5f);
+            } else {
+                // TODO: У тебя пока нет модели Охотника. Для теста можешь рисовать куст :)
+                m_bushModel.render(m_shader, m_enemy.pos, 1.0f);
+            }
+        }
+
+        // В САМОМ КОНЦЕ рисуем UI поверх всего:
+        renderUI();
+        renderGun();
+    }
 }
 
 bool Game::checkMooseHit() {
@@ -499,17 +507,6 @@ void Game::renderGun() {
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
-
-        if (m_enemy.active) {
-            if (m_enemy.role == EntityType::MOOSE) {
-                // Рисуем модель лося по вражеским координатам
-                m_mooseModel.render(m_shader, m_enemy.pos, 0.5f);
-            } else {
-                // TODO: У тебя пока нет модели Охотника. Для теста можешь рисовать куст :)
-                m_bushModel.render(m_shader, m_enemy.pos, 1.0f);
-            }
-        }
-    }
 }
 
 // ---- Cleanup ----

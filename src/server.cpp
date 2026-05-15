@@ -11,7 +11,7 @@ int main() {
     atexit(enet_deinitialize);
 
     ENetAddress address;
-    address.host = ENET_HOST_ANY;  // Слушаем любой IP (включая интернет)
+    address.host = ENET_HOST_ANY;
     address.port = 12345;
 
     ENetHost* server = enet_host_create(&address, 32, 2, 0, 0);
@@ -25,41 +25,62 @@ int main() {
     int nextPlayerId = 1;
     std::map<ENetPeer*, int> peerToId;
 
+    bool isMooseTaken = false;
+    bool isHunterTaken = false;
+
     ENetEvent event;
     while (true) {
         while (enet_host_service(server, &event, 10) > 0) {
             if (event.type == ENET_EVENT_TYPE_CONNECT) {
                 int newId = nextPlayerId++;
                 peerToId[event.peer] = newId;
-
-                // Первый - Лось, второй - Охотник
-                EntityType role = (newId % 2 != 0) ? EntityType::MOOSE : EntityType::HUNTER;
-
-                std::cout << "[SERVER] Client connected! ID: " << newId << " Role: " << (int)role << std::endl;
-
-                // Отправляем игроку его роль
-                PacketInit initData;
-                initData.myId = newId;
-                initData.myRole = role;
-
-                ENetPacket* packet = enet_packet_create(&initData, sizeof(PacketInit), ENET_PACKET_FLAG_RELIABLE);
-                enet_peer_send(event.peer, 0, packet);
+                std::cout << "[SERVER] Client connected! ID: " << newId << " waiting for role..." << std::endl;
             } else if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                // Сервер получил позицию от игрока. Надо разослать остальным.
-                PacketUpdate* update = (PacketUpdate*)event.packet->data;
+                PacketHeader* header = reinterpret_cast<PacketHeader*>(event.packet->data);
 
-                // Рассылаем всем КРОМЕ отправителя
-                ENetPacket* broadcastPacket = enet_packet_create(update, sizeof(PacketUpdate), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
-                for (size_t i = 0; i < server->peerCount; ++i) {
-                    ENetPeer* targetPeer = &server->peers[i];
-                    if (targetPeer->state == ENET_PEER_STATE_CONNECTED && targetPeer != event.peer) {
-                        enet_peer_send(targetPeer, 1, broadcastPacket);
+                if (header->type == PacketType::JOIN_REQUEST) {
+                    PacketJoinRequest* req = reinterpret_cast<PacketJoinRequest*>(event.packet->data);
+
+                    EntityType assignedRole;
+                    // Проверяем, свободна ли роль
+                    if (req->requestedRole == EntityType::MOOSE && !isMooseTaken) {
+                        assignedRole = EntityType::MOOSE;
+                        isMooseTaken = true;
+                    } else if (req->requestedRole == EntityType::HUNTER && !isHunterTaken) {
+                        assignedRole = EntityType::HUNTER;
+                        isHunterTaken = true;
+                    } else {
+                        // Если занята, даем ту, что осталась
+                        assignedRole = isMooseTaken ? EntityType::HUNTER : EntityType::MOOSE;
+                        if (assignedRole == EntityType::MOOSE)
+                            isMooseTaken = true;
+                        else
+                            isHunterTaken = true;
+                    }
+
+                    std::cout << "[SERVER] Assigned Role " << (int)assignedRole << " to ID " << peerToId[event.peer] << std::endl;
+
+                    PacketInit initData;
+                    initData.myId = peerToId[event.peer];
+                    initData.myRole = assignedRole;
+                    ENetPacket* packet = enet_packet_create(&initData, sizeof(PacketInit), ENET_PACKET_FLAG_RELIABLE);
+                    enet_peer_send(event.peer, 0, packet);
+                } else if (header->type == PacketType::UPDATE) {
+                    PacketUpdate* update = reinterpret_cast<PacketUpdate*>(event.packet->data);
+                    ENetPacket* broadcastPacket = enet_packet_create(update, sizeof(PacketUpdate), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
+
+                    for (size_t i = 0; i < server->peerCount; ++i) {
+                        ENetPeer* targetPeer = &server->peers[i];
+                        if (targetPeer->state == ENET_PEER_STATE_CONNECTED && targetPeer != event.peer) {
+                            enet_peer_send(targetPeer, 1, broadcastPacket);
+                        }
                     }
                 }
                 enet_packet_destroy(event.packet);
             } else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
-                std::cout << "[SERVER] Client disconnected! ID: " << peerToId[event.peer] << std::endl;
+                std::cout << "[SERVER] Client disconnected!" << std::endl;
                 peerToId.erase(event.peer);
+                // По-хорошему тут нужно освобождать isMooseTaken / isHunterTaken
             }
         }
     }
