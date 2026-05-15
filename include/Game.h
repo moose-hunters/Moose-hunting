@@ -24,7 +24,7 @@ struct BushInstance {
 
 struct FenceInstance {
     glm::vec3 pos;
-    float yaw; // Угол поворота (чтобы забор смотрел вдоль границы)
+    float yaw;
     float scale;
 };
 
@@ -83,7 +83,6 @@ class Game {
     static void mouseCallback(GLFWwindow* w, double x, double y);
     static void scrollCallback(GLFWwindow* w, double xoff, double yoff);
 
-    // Ограничиваем Y камеры
     float m_floorY = 1.5f;
 
     // Деревья
@@ -94,12 +93,12 @@ class Game {
     Tree m_bushModel;
     std::vector<BushInstance> m_bushes;
 
-    // --- Лось ---
+    // Лось
     Tree m_mooseModel;
     glm::vec3 m_moosePos;
-    glm::vec2 m_mooseDir;      // Направление движения в плоскости XZ
-    float m_mooseSpeed = 2.0f; // Скорость лося
-    float m_mooseTimer = 0.0f; // Таймер до смены направления
+    glm::vec2 m_mooseDir;
+    float m_mooseSpeed = 2.0f;
+    float m_mooseTimer = 0.0f;
     
     void updateMoose(float dt);
 
@@ -111,17 +110,17 @@ class Game {
     bool m_isGrounded = true;
     const float m_gravity = -15.0f;
     const float m_jumpForce = 7.0f;
-    const float m_cameraHeight = 1.5f; // Рост персонажа
+    const float m_cameraHeight = 1.5f;
 
-    // --- UI и Стрельба ---
+    // Стрельба
     Shader m_uiShader;
-    GLuint m_uiVAO, m_uiVBO;
+    GLuint m_uiVAO = 0, m_uiVBO = 0;
 
     float m_shootCooldown;
     float m_maxCooldown;
     bool m_wasLMBPressed;
 
-    // индикатор убийств
+    // Индикатор убийств
     int m_kills = 0;
 
     void setupUI();
@@ -129,15 +128,15 @@ class Game {
     bool checkMooseHit();
     bool checkPlayerHit();
 
-    GLuint m_gunVAO, m_gunVBO;
-    std::vector<GLuint> m_gunFrames; // IDs текстур: кадры 0-4
+    GLuint m_gunVAO = 0, m_gunVBO = 0;
+    std::vector<GLuint> m_gunFrames; 
     int m_currentGunFrame = 0;
     bool m_isShooting = false;
     float m_animationTimer = 0.0f;
 
-    const float m_frameDuration = 0.08f; // Скорость анимации (в секундах на кадр)
+    const float m_frameDuration = 0.08f;
 
-    // Метод для загрузки кадра (можно использовать тот же stbi)
+    // Загрузка кадров
     Shader m_gunShader;
     GLuint loadTexture(const char* path);
 
@@ -161,6 +160,7 @@ class Game {
     EnemyState m_enemy;
 
     void processNetwork();
+
     // Отрисовка состояний
     void renderSplash();
     void renderMenu();

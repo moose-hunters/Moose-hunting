@@ -3,7 +3,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
-// ==================== Mesh ====================
 
 Mesh::Mesh(std::vector<Vertex> v, std::vector<GLuint> i, std::vector<MeshTexture> t)
     : vertices(std::move(v)), indices(std::move(i)), textures(std::move(t)) {
@@ -85,19 +84,15 @@ void Mesh::cleanup() {
     glDeleteBuffers(1, &m_ebo);
 }
 
-// ==================== Tree ====================
+// Дерево
 
 bool Tree::load(const std::string& path, bool preTransform) {
     Assimp::Importer importer;
 
-    // aiProcess_Triangulate — гарантируем треугольники
-    // aiProcess_FlipUVs     — переворачиваем UV по Y (OpenGL vs DirectX)
-    // aiProcess_CalcTangentSpace — считаем тангенты
-    // aiProcess_GenNormals  — генерируем нормали если их нет
     unsigned int flags = aiProcess_Triangulate | aiProcess_FlipUVs |
         aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals;
 
-    if (preTransform) flags |= aiProcess_PreTransformVertices; // Включаем только если просят
+    if (preTransform) flags |= aiProcess_PreTransformVertices;
 
     const aiScene* scene = importer.ReadFile(path, flags);
 
@@ -132,7 +127,7 @@ Mesh Tree::processMesh(aiMesh* mesh, const aiScene* scene) {
     std::vector<GLuint> indices;
     std::vector<MeshTexture> textures;
 
-    // ---- Вершины ----
+    // Вершины
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
         Vertex v{};
         v.position = {mesh->mVertices[i].x,
@@ -161,31 +156,29 @@ Mesh Tree::processMesh(aiMesh* mesh, const aiScene* scene) {
         vertices.push_back(v);
     }
 
-    // ---- Индексы ----
+    // Индексы
     for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
         aiFace& face = mesh->mFaces[i];
         for (unsigned int j = 0; j < face.mNumIndices; j++)
             indices.push_back(face.mIndices[j]);
     }
 
-    // ---- Материалы / Текстуры ----
+    // Материалы / Текстуры
     glm::vec4 baseColor{1.0f};
     bool hasBaseColorTex = false;
 
     if (mesh->mMaterialIndex >= 0) {
         aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
 
-        // GLTF PBR albedo
         aiColor4D color;
         if (AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_DIFFUSE, color)) {
             baseColor = {color.r, color.g, color.b, color.a};
         }
-        // Для GLTF2 — ключ base color
         if (AI_SUCCESS == mat->Get(AI_MATKEY_BASE_COLOR, color)) {
             baseColor = {color.r, color.g, color.b, color.a};
         }
 
-        // Диффузные текстуры (GLTF хранит их как aiTextureType_DIFFUSE или BASE_COLOR)
+        // Диффузные текстуры 
         auto diff = loadMaterialTextures(mat, aiTextureType_DIFFUSE,
             "texture_diffuse", scene);
         textures.insert(textures.end(), diff.begin(), diff.end());
@@ -230,7 +223,6 @@ std::vector<MeshTexture> Tree::loadMaterialTextures(
         mat->GetTexture(type, i, &str);
         std::string texPath = str.C_Str();
 
-        // Проверяем — не грузили ли уже эту текстуру
         bool already = false;
         for (auto& lt : m_loadedTextures) {
             if (lt.path == texPath) {
@@ -245,7 +237,7 @@ std::vector<MeshTexture> Tree::loadMaterialTextures(
         tex.type = typeName;
         tex.path = texPath;
 
-        // Встроенная текстура GLB (путь начинается с '*')
+        // Встроенная текстура GLB
         if (texPath[0] == '*') {
             int idx = std::stoi(texPath.substr(1));
             tex.id = loadEmbeddedTexture(scene->mTextures[idx]);
@@ -269,12 +261,10 @@ GLuint Tree::loadEmbeddedTexture(const aiTexture* tex) {
     unsigned char* data = nullptr;
 
     if (tex->mHeight == 0) {
-        // Сжатые данные (PNG/JPG внутри GLB)
         data = stbi_load_from_memory(
             reinterpret_cast<const stbi_uc*>(tex->pcData),
             tex->mWidth, &w, &h, &ch, 0);
     } else {
-        // Несжатые RGBA8888
         w = tex->mWidth;
         h = tex->mHeight;
         ch = 4;
@@ -343,11 +333,10 @@ void Tree::render(Shader& shader,
     float scale, float rotationY) {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, position);
-    model = glm::rotate(model, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f)); // Поворот вокруг оси Y
+    model = glm::rotate(model, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f));
     model = glm::scale(model, glm::vec3(scale));
     shader.setMat4("model", model);
 
-    // Нормальная матрица для корректного освещения при масштабировании
     glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
     shader.setMat3("normalMatrix", normalMatrix);
 

@@ -26,7 +26,7 @@ Window::Window(int width, int height, const std::string& title)
 
     std::cout << "3. Making context current..." << std::endl;
     glfwMakeContextCurrent(m_window);
-    glfwSwapInterval(1);  // VSync
+    glfwSwapInterval(1);
 
     std::cout << "4. Initializing GLAD..." << std::endl;
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {

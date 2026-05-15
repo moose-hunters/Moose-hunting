@@ -26,14 +26,14 @@ struct MeshTexture {
     std::string path;
 };
 
-// ---- Один меш ----
+// Один меш
 class Mesh {
    public:
     std::vector<Vertex> vertices;
     std::vector<GLuint> indices;
     std::vector<MeshTexture> textures;
 
-    glm::vec4 baseColorFactor{1.0f};  // GLTF PBR albedo
+    glm::vec4 baseColorFactor{1.0f};
     bool hasBaseColorTexture{false};
 
     Mesh(std::vector<Vertex> v, std::vector<GLuint> i, std::vector<MeshTexture> t);
@@ -45,15 +45,22 @@ class Mesh {
     void setupMesh();
 };
 
-// ---- Дерево ----
+// Дерево
 class Tree {
    public:
     Tree() = default;
     ~Tree() { cleanup(); }
 
+    // Запрещаем копирование
+    Tree(const Tree&) = delete;
+    Tree& operator=(const Tree&) = delete;
+
+    // Разрешаем перемещение
+    Tree(Tree&&) = default;
+    Tree& operator=(Tree&&) = default;
+
     bool load(const std::string& path, bool preTransform = false);
 
-    // Рисует с передачей матриц прямо внутрь
     void render(Shader& shader,
         const glm::vec3& position = glm::vec3(0.0f),
         float scale = 1.0f, float rotationY = 0.0f);

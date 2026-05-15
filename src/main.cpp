@@ -17,9 +17,9 @@ int main() {
 
     if (choice == 1) {
         std::cout << "[SYSTEM] Starting GameServer.exe in background..." << std::endl;
-        system("start GameServer.exe");  // Откроет сервер в новом окне
+        system("start GameServer.exe");
     } else {
-        std::cout << "Enter Server IP (e.g. your friend's Radmin VPN IP): ";
+        std::cout << "Enter Server IP: ";
         std::cin >> ip;
     }
     std::cout << "[SYSTEM] Launching Game..." << std::endl;

@@ -38,11 +38,11 @@ struct PacketInit {
 
 // Пакет с координатами
 struct PacketUpdate {
-    PacketHeader header = {PacketType::UPDATE};
-    int playerId;
-    EntityType role;
-    float x, y, z;
-    float yaw;
+    PacketHeader header = { PacketType::UPDATE };
+    int playerId = 0;
+    EntityType role = EntityType::MOOSE;
+    float x = 0.0f, y = 0.0f, z = 0.0f;
+    float yaw = 0.0f;
 };
 
 // пакет с попаданиями
@@ -51,4 +51,5 @@ struct PacketHit {
     // В PvP 1 на 1 ID можно не слать, но для будущего оставим:
     int victimId;
 };
+
 #pragma pack(pop)
