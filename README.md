@@ -1,230 +1,145 @@
 # 🦌 Moose Hunting
 
-**Moose Hunting** is a small project (game) about hunting moose.
-The project is built using **CMake** and can be compiled on **Windows, Linux, and macOS**.
+**Moose Hunting** — это трехмерная клиент-серверная PvP-игра про охоту на лося, разрабатываемая на C++ с использованием OpenGL. Проект является кроссплатформенным и может быть собран на **Windows, Linux и macOS** с помощью системы автоматизации сборки **CMake**.
+
+В игре один игрок принимает на себя роль Лося, задача которого — выживать на лесистом ландшафте, а второй — роль Охотника, задача которого — выследить и подбить цель.
 
 ---
 
-# Our Team
+# 👥 Наша команда
 
-- **Rybin Valery**
-- **Shamsutdinov Radomir**
-
----
-
-# Requirements
-
-Before building the project, make sure the following tools are installed:
-
-- **CMake 3.20 or higher**
-- **A C++ compiler**
-  - **GCC / Clang** for Linux and macOS
-  - **MSVC or MinGW** for Windows
-
-- **Git** (to clone the repository)
+- **Рыбин Валерий**
+- **Шамсутдинов Радомир**
 
 ---
 
-# Getting Started
+# 🛠️ Требования к системе
 
-## 1. Clone the Repository
+Перед сборкой проекта убедитесь, что в вашей системе установлены следующие инструменты:
+
+- **CMake 3.20 или выше**
+- **Компилятор C++ с поддержкой стандарта C++17**
+  - **GCC / Clang** для Linux и macOS
+  - **MSVC или MinGW-w64** для Windows
+- **Git** (для работы с репозиторием)
+
+---
+
+# 🚀 Быстрый старт (Quick Start)
+
+Откройте терминал в корневой папке проекта (например, Git Bash на Windows) и выполните команду «все в одном» для конфигурации, сборки и запуска клиента:
 
 ```bash
-git clone <repository-url>
-cd Moose-hunting
-```
+cmake -S . -B build && cmake --build build && ./build/MooseHunting
 
---
+⚙️ Конфигурация проекта
 
-# Quick Build & Run
+CMake-скрипт автоматически генерирует две цели (targets): клиентскую игру MooseHunting и выделенный сервер GameServer. Они компилируются параллельно.
+Настройка под Windows
 
-_(Git Bash on Windows with MinGW)_
+Выберите один из вариантов в зависимости от установленного у вас компилятора:
 
-```bash
-cmake -G "MinGW Makefiles" -S . -B build && cmake --build build && ./build/MooseHunting
-```
+Вариант А — компиляция через MinGW (GCC):
+Bash
 
----
-
-# Configure the Project
-
-Choose the instructions depending on your operating system and preferred build tool.
-
----
-
-# Windows
-
-## Option A — MinGW (GCC)
-
-If you have **MinGW-w64** installed and added to your `PATH`:
-
-```bash
 cmake -G "MinGW Makefiles" -S . -B build
-```
 
----
+Вариант Б — компиляция через Visual Studio (MSVC):
+Bash
 
-## Option B — Visual Studio
-
-If **Visual Studio** (with C++ tools) is installed:
-
-```bash
 cmake -S . -B build
-```
 
-### build from the command line
+Вариант В — компиляция через Ninja:
+Bash
 
-```bash
-cmake --build build --config Release
-```
-
----
-
-## Option C — Ninja
-
-If **Ninja** is installed:
-
-```bash
 cmake -G "Ninja" -S . -B build
-```
 
----
+Настройка под Linux / macOS
 
-# Linux / macOS
+На Unix-подобных системах генератором по умолчанию выступает Unix Makefiles.
+На macOS перед началом работы может потребоваться установить инструменты командной строки Xcode: xcode-select --install.
+Bash
 
-On Unix-like systems the default generator is usually **Unix Makefiles**.
-
-Make sure a C++ compiler is installed:
-
-- `g++`
-- `clang`
-
-On macOS you may need to install **Xcode Command Line Tools**:
-
-```bash
-xcode-select --install
-```
-
-### Configure the project
-
-```bash
 cmake -S . -B build
-```
 
----
+🏗️ Сборка проекта
 
-## Optional Generators
+После того как папка build/ была успешно сконфигурирована, запустите компиляцию проекта:
+Bash
 
-### Makefiles
-
-```bash
-cmake -G "Unix Makefiles" -S . -B build
-```
-
-### Ninja
-
-```bash
-cmake -G "Ninja" -S . -B build
-```
-
-### Xcode (macOS)
-
-```bash
-cmake -G "Xcode" -S . -B build
-```
-
----
-
-# Build the Project
-
-After configuration, build the project:
-
-```bash
-cmake --build build
-```
-
-For multi-configuration generators (such as Visual Studio or Xcode):
-
-```bash
 cmake --build build --config Release
-```
 
-or
+Флаг --config Release является обязательным для многоконфигурационных генераторов (таких как Visual Studio или Xcode) для сборки оптимизированной версии без лагов.
+🎮 Запуск и сетевой режим
 
-```bash
-cmake --build build --config Debug
-```
+После успешного завершения сборки в директории build/ появятся два исполняемых файла: MooseHunting (клиентское приложение игры) и GameServer (выделенный сервер).
 
----
+При запуске игры клиента перед вами откроется текстовое стартовое меню:
 
-# Run the Executable
+    Create Local Server (Host) — Клиент автоматически запустит GameServer в фоновом режиме и мгновенно подключится к локальному адресу 127.0.0.1.
 
-After a successful build, the executable will be located inside the **build** directory.
+    Connect to Internet/LAN Server — Режим для игры по сети (например, через Radmin VPN). Клиент подключится к указанному или введенному IP-адресу сервера.
 
-### Windows
+Команды ручного запуска из терминала:
 
-```bash
-cd build
-.\MooseHunting.exe
-```
+Для Windows:
+Bash
 
-### Linux / macOS
+# Запуск клиента игры
+.\build\MooseHunting.exe
 
-```bash
-cd build
-./MooseHunting
-```
+# Запуск выделенного сервера (опционально)
+.\build\GameServer.exe
 
-# Notes
+Для Linux / macOS:
+Bash
 
-- Make sure **CMake and your compiler are available in PATH**.
-- If you modify the source code, you only need to repeat the **build and run** steps.
-- For easier development, consider using an IDE with built-in CMake support.
+# Запуск клиента игры
+./build/MooseHunting
 
-### Recommended IDEs
+# Запуск выделенного сервера (опционально)
+./build/GameServer
 
-- **Visual Studio**
-- **CLion**
-- **VS Code** with **CMake Tools**
-- **Qt Creator**
+📂 Структура проекта
 
----
+Moose-hunting/
+├── assets/               # Графические текстуры (.png), 3D-модели (.obj) и звуки (.wav)
+├── shaders/              # Шейдеры графического конвейера OpenGL (.glsl)
+├── include/              # Заголовочные файлы проекта (.h)
+│   ├── Protocol.h        # Общий сетевой протокол (бинарные структуры пакетов)
+│   ├── Game.h            # Описание главного класса игрового движка клиента
+│   ├── Window.h          # Абстракция графического окна приложения
+│   ├── Terrain.h         # Менеджмент генерации и отрисовки ландшафта высот
+│   ├── Tree.h            # Рендеринг трехмерных объектов окружения
+│   └── shader.h          # Вспомогательный класс компиляции шейдеров
+├── src/                  # Исходный код реализации (.cpp)
+│   ├── main.cpp          # Точка входа в клиент, обработка стартового меню выбора режима
+│   ├── server.cpp        # Логика работы авторитарного выделенного сервера (на базе ENet)
+│   ├── Game.cpp          # Главный цикл клиента, обработка сетевых пакетов, звуки (через miniaudio)
+│   ├── Window.cpp        # Инициализация контекста окна и обработка ввода (GLFW / GLAD)
+│   ├── Terrain.cpp       # Логика текстурирования и просчета высот ландшафта
+│   ├── Tree.cpp          # Отрисовка трехмерных моделей деревьев и кустов
+│   └── shader.cpp        # Чтение и загрузка исходного кода шейдеров в GPU
+├── external/             # Внешние библиотеки, собираемые вместе с проектом
+│   ├── glad/             # Загрузчик расширений и функций OpenGL
+│   ├── glfw/             # Создание окон, контекстов и обработка системных событий
+│   ├── glm/              # Библиотека линейной алгебры для 3D-графики (матрицы, векторы)
+│   ├── stb/              # Загрузчик изображений для текстур (stb_image)
+│   ├── assimp/           # Библиотека для импорта сложных 3D-моделей и сцен
+│   ├── enet/             # Сетевой движок на базе надежного UDP-протокола
+│   └── freetype/         # Движок для рендеринга растровых и векторных шрифтов
+├── .gitignore            # Исключения для контроля версий (папки сборки, кэш IDE)
+├── CMakeLists.txt        # Главный конфигурационный скрипт сборки для CMake
+└── README.md             # Документация проекта
 
-# Project Structure
+💻 Рекомендуемые среды разработки (IDE)
 
-```
-Moose-hunting
-│
-├── assets
-│
-├── external
-│   └── glad
-│   └── glfw
-│   └── glm
-│   └── stb
-│   └── tinygltf
-│
-├── include
-│   └── Game.h
-│   └── Tree.h
-│   └── Window.h
-│   └── gl_utils.h
-│   └── shader.h
-│
-├── shaders
-│   └── tree_fragment.glsl
-│   └── tree_vertex.glsl
-│
-├── src
-│   └── Game.cpp
-│   └── Tree.cpp
-│   └── Window.cpp
-│   └── gl_utils.cpp
-│   └── shader.cpp
-│   └── main.cpp
-│
-├── .gitignore
-├── CMakeLists.txt
-│
-└── README.md
-```
+Для удобной навигации по коду, автоматического подхватывания конфигурации CMake и отладки рекомендуется использовать:
+
+    Visual Studio 2022 (с установленным пакетом компонентов «Разработка классических приложений на C++»)
+
+    CLion от JetBrains
+
+    VS Code (с обязательными расширениями C/C++ и CMake Tools)
+
+    Qt Creator
