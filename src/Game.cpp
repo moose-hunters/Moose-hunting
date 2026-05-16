@@ -216,7 +216,7 @@ void Game::processInput(float dt) {
         if (glfwGetKey(w, GLFW_KEY_A) == GLFW_PRESS) moveWithCollision(-right * speed);
         if (glfwGetKey(w, GLFW_KEY_D) == GLFW_PRESS) moveWithCollision(right * speed);
 
-        // --- Воспроизведение шагов ---
+        // Воспроизведение шагов
         if (isMoving && m_isGrounded) {
             m_stepTimer -= dt;
             if (m_stepTimer <= 0.0f) {
@@ -385,6 +385,10 @@ void Game::render() {
     }
 }
 
+
+// Функции для NPC-лося (использовался для дебага)
+// Логика движения крайне простая: случайно выбираем время, на протяжении которого лось будет двигаться по прямой
+// потом - поворот на случайный угол
 void Game::updateMoose(float dt) {
     m_mooseTimer -= dt;
 
@@ -529,6 +533,10 @@ void Game::renderUI() {
     glLineWidth(1.0f);
     glDisable(GL_BLEND);
 
+    m_uiShader.use();
+    glBindVertexArray(m_uiVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_uiVBO);
+
     // Полоска перезарядки в правом нижнем углу
     float barW = 150.0f, barH = 20.0f, pad = 20.0f;
     float bx1 = m_width - barW - pad;
@@ -536,11 +544,13 @@ void Game::renderUI() {
     float bx2 = m_width - pad;
     float by2 = pad + barH;
 
+    // Рисуем темный фон полоски
     float bgVerts[] = { bx1, by1,  bx2, by1,  bx1, by2,  bx2, by2 };
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(bgVerts), bgVerts);
     m_uiShader.setVec3("color", glm::vec3(0.2f, 0.2f, 0.2f));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+    // Рисуем заполнение полоски
     if (m_shootCooldown > 0.0f) {
         float progress = 1.0f - (m_shootCooldown / m_maxCooldown);
         float curW = barW * progress;
