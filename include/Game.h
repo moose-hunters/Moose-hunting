@@ -10,6 +10,10 @@
 #include <enet/enet.h>
 #include "Protocol.h"
 #include <map>
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+#include "miniaudio.h"
 
 struct TreeInstance {
     glm::vec3 pos;
@@ -35,12 +39,19 @@ enum class GameState {
     PLAYING
 };
 
+struct Character {
+    GLuint TextureID;      // ID текстуры глифа
+    glm::ivec2 Size;       // Размер глифа
+    glm::ivec2 Bearing;    // Смещение от базовой линии до левого/верхнего угла
+    unsigned int Advance;  // Смещение до следующего символа
+};
+
 class Game {
    public:
     Game();
     ~Game();
 
-    bool init(int width, int height, const char* title);
+    bool init(int width, int height, const char* title, const std::string& serverIP);
     void run();
 
    private:
@@ -110,7 +121,7 @@ class Game {
     bool m_isGrounded = true;
     const float m_gravity = -15.0f;
     const float m_jumpForce = 7.0f;
-    const float m_cameraHeight = 1.5f;
+    const float m_cameraHeight = 3.5f; 
 
     // Стрельба
     Shader m_uiShader;
@@ -122,6 +133,7 @@ class Game {
 
     // Индикатор убийств
     int m_kills = 0;
+    int m_deaths = 0;
 
     void setupUI();
     void renderUI();
@@ -165,4 +177,15 @@ class Game {
     void renderSplash();
     void renderMenu();
     void renderGame();
+
+    Shader m_textShader;
+    GLuint m_textVAO, m_textVBO;
+    std::map<GLchar, Character> m_characters;
+
+    bool initFont(const char* fontPath, unsigned int fontSize);
+    void renderText(std::string text, float x, float y, float scale, glm::vec3 color);
+
+    ma_engine m_audioEngine;
+    float m_stepTimer = 0.0f;
+    float m_roarTimer = 25.0f;
 };

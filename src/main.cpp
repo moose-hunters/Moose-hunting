@@ -4,29 +4,27 @@
 #include <cstdlib>
 
 int main() {
-    std::cout << "Starting MooseHunting..." << std::endl;
     std::cout << "=== MOOSE HUNTING ===" << std::endl;
     std::cout << "1. Create Local Server (Host)" << std::endl;
     std::cout << "2. Connect to Internet/LAN Server" << std::endl;
-    std::cout << "Choice: ";
-
     int choice;
     std::cin >> choice;
 
-    std::string ip = "127.0.0.1";
-
+    std::string targetIP = "127.0.0.1";  // По умолчанию локальный
+    if (choice == 2) {
+        targetIP = "26.186.206.213";  // Radmin VPN IP
+        // std::cout << "Enter Server IP address (e.g., 26.186.206.213): ";
+        // std::cin >> targetIP;  // Считываем то, что ты введешь руками
+    }
     if (choice == 1) {
         std::cout << "[SYSTEM] Starting GameServer.exe in background..." << std::endl;
         system("start GameServer.exe");
-    } else {
-        std::cout << "Enter Server IP: ";
-        std::cin >> ip;
     }
     std::cout << "[SYSTEM] Launching Game..." << std::endl;
 
     Game game;
 
-    if (!game.init(1024, 768, "Moose Hunting")) {
+    if (!game.init(1600, 900, "Moose Hunting", targetIP)) {
         std::cerr << "Initialization error!" << std::endl;
         return -1;
     }
